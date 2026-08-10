@@ -33,5 +33,6 @@ Android only
 
 #Backend
 
+
 No separate Node.js/Express backend. Firebase services will act as the backend infrastructure.
 
