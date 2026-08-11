@@ -1,4 +1,4 @@
-school-district-monitor/
+SchoolSync/
 │
 ├── README.md
 ├── pubspec.yaml
