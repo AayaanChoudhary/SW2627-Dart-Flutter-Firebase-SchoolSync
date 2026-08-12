@@ -396,3 +396,458 @@ Suggested statuses:
 This allows administrators to quickly identify schools with outstanding fee collections.
 
 ---
+
+# 11. Exams — District Overview
+
+The Exams page provides a centralized view of upcoming examinations across all schools.
+
+The page title should be:
+
+```text
+DISTRICT OVERVIEW
+
+Exams
+```
+
+---
+
+## 11.1 Weekly Examination Summary
+
+The page displays:
+
+```text
+This Week
+
+6 Scheduled
+```
+
+This gives administrators an overview of examination activity for the current week.
+
+---
+
+## 11.2 Examination Cards
+
+Each examination card should contain:
+
+* Examination Name
+* School Name
+* Class
+* Examination Date
+* Progress Status
+
+### Example
+
+```text
+Mathematics — Mid Term
+
+Greenwood · Class 8 · 14 Aug
+
+[ ON TRACK ]
+```
+
+Another example:
+
+```text
+Science — Mid Term
+
+Riverdale High · Class 9 · 16 Aug
+
+[ LAGGING ]
+```
+
+---
+
+## 11.3 Examination Status
+
+Each examination should have one of the following statuses:
+
+### On Track
+
+The examination is proceeding according to schedule.
+
+### Lagging
+
+The examination requires attention because preparation or progress is behind schedule.
+
+---
+
+# 12. Account / Profile
+
+The Account page allows the administrator to view and manage their profile.
+
+Based on the provided design, the page contains a profile card.
+
+## 12.1 Profile Information
+
+The profile card displays:
+
+* Profile Avatar
+* User Initials
+* Administrator Name
+* Role
+* District / Zone
+
+### Example
+
+```text
+PN
+
+Priya Nair
+
+DISTRICT ADMINISTRATOR · RAJASTHAN ZONE
+```
+
+---
+
+## 12.2 Account Options
+
+The Account page includes the following options:
+
+### Notifications
+
+The user can manage notification preferences.
+
+Possible notifications:
+
+* Low attendance alerts
+* Pending fee alerts
+* Examination status alerts
+
+---
+
+### Language & Region
+
+The administrator can manage:
+
+* Application language
+* Regional preferences
+
+---
+
+### Help & Support
+
+The administrator can access:
+
+* Frequently Asked Questions
+* Support information
+* Contact support
+
+---
+
+# 13. Feedback Feature
+
+A feedback feature can be included in the MVP or future iteration.
+
+The district administrator should be able to view feedback received from schools.
+
+Each feedback item may contain:
+
+* School Name
+* Feedback Message
+* Rating
+* Date
+* Feedback Status
+
+The initial version can display the **latest 5 feedback entries**.
+
+---
+
+# 14. Functional Requirements
+
+## Authentication
+
+* Users must be able to sign up.
+* Users must be able to log in.
+* Users must be able to reset forgotten passwords.
+* Only authenticated users can access district data.
+
+## District Overview
+
+* Display attendance summary.
+* Display fee collection summary.
+* Display examination count.
+* Display pinned schools.
+* Display school-level status.
+
+## Attendance
+
+* Display attendance for multiple schools.
+* Display student count.
+* Display attendance percentage.
+* Highlight low attendance schools.
+
+## Fees
+
+* Display total collected fees.
+* Display total pending fees.
+* Display school-wise fee data.
+* Display cleared or due status.
+
+## Exams
+
+* Display upcoming examinations.
+* Display school and class information.
+* Display examination dates.
+* Display On Track or Lagging status.
+
+## Account
+
+* Display administrator profile information.
+* Provide notification settings.
+* Provide language and region settings.
+* Provide help and support options.
+
+---
+
+# 15. Suggested Data Structure
+
+The application will mainly manage the following data entities.
+
+## User
+
+```text
+User
+├── id
+├── name
+├── email
+├── role
+├── district
+└── profileImage
+```
+
+## School
+
+```text
+School
+├── id
+├── name
+├── studentCount
+├── districtId
+├── attendancePercentage
+├── feesCollected
+├── feesPending
+└── examStatus
+```
+
+## Attendance
+
+```text
+Attendance
+├── schoolId
+├── totalStudents
+├── presentStudents
+├── attendancePercentage
+└── date
+```
+
+## Fees
+
+```text
+Fees
+├── schoolId
+├── totalExpected
+├── collectedAmount
+├── pendingAmount
+└── status
+```
+
+## Examination
+
+```text
+Examination
+├── schoolId
+├── examName
+├── class
+├── examDate
+└── status
+```
+
+---
+
+# 16. User Flow
+
+```text
+Open SchoolSync
+        ↓
+Authentication
+        ↓
+Login Successful
+        ↓
+District Overview
+        ↓
+ ┌──────┼─────────┬────────┬─────────┐
+ ↓      ↓         ↓        ↓         ↓
+Board Attendance  Fees    Exams    Profile
+```
+
+### Detailed Flow
+
+```text
+Login
+  ↓
+District Overview
+  ↓
+View District Summary
+  ↓
+Select Navigation Section
+  ↓
+Attendance / Fees / Exams / Profile
+  ↓
+View Detailed Information
+```
+
+---
+
+# 17. UI and Design Requirements
+
+The UI should follow the visual style demonstrated in the provided reference screens.
+
+## Design Direction
+
+* Mobile-first interface
+* Minimal dashboard design
+* Large readable cards
+* Soft rounded corners
+* Clear typography
+* Consistent spacing
+* Bottom navigation
+* Quick access to major district metrics
+
+## Main UI Elements
+
+### Background
+
+A warm brown district-themed background with subtle visual texture.
+
+### Content Cards
+
+Light-colored cards used for:
+
+* Metrics
+* School information
+* Fee summaries
+* Examination schedules
+* Profile information
+
+### Bottom Navigation
+
+Persistent navigation with five items:
+
+```text
+Board | Attend. | Fees | Exams | Profile
+```
+
+The currently active page should be visually highlighted.
+
+---
+
+# 18. MVP Scope
+
+The first version of SchoolSync should focus on the following features.
+
+## Must Have
+
+* [ ] User Signup
+* [ ] User Login
+* [ ] Forgot Password
+* [ ] District Overview Dashboard
+* [ ] Attendance Overview
+* [ ] Fee Overview
+* [ ] Examination Overview
+* [ ] On Track / Lagging Status
+* [ ] School-wise Data
+* [ ] Bottom Navigation
+* [ ] Profile / Account Page
+* [ ] Firebase Authentication
+* [ ] Cloud Firestore Database
+
+## Nice to Have
+
+These can be implemented later:
+
+* [ ] Push Notifications
+* [ ] Advanced Analytics
+* [ ] Attendance History Charts
+* [ ] Detailed Student Information
+* [ ] Detailed Fee Transactions
+* [ ] Examination Reminders
+* [ ] Multiple District Support
+* [ ] Export Reports
+* [ ] Feedback Management System
+
+---
+
+# 19. Recommended Tech Stack
+
+Since SchoolSync is being developed as a mobile application, the recommended stack is:
+
+| Technology              | Purpose                                |
+| ----------------------- | -------------------------------------- |
+| Flutter                 | Mobile application development         |
+| Dart                    | Application programming language       |
+| Firebase Authentication | User authentication                    |
+| Cloud Firestore         | Application database                   |
+| Firebase Storage        | Profile images and future file storage |
+| Flutter Material UI     | UI components                          |
+| Git & GitHub            | Version control                        |
+
+---
+
+# 20. Success Criteria
+
+The SchoolSync MVP will be considered successful if a district administrator can:
+
+1. Create an account and log in securely.
+2. View district-level statistics.
+3. Monitor attendance across multiple schools.
+4. Identify schools with low attendance.
+5. Monitor collected and pending fees.
+6. Identify schools with pending payments.
+7. View upcoming examinations.
+8. Identify examinations that are On Track or Lagging.
+9. Navigate easily between all major sections.
+10. Access and manage their account.
+
+---
+
+# 21. Final Application Structure
+
+```text
+SchoolSync
+│
+├── Authentication
+│   ├── Login
+│   ├── Signup
+│   └── Forgot Password
+│
+├── Main Application
+│   │
+│   ├── 🏠 District Overview
+│   │   ├── Attendance Summary
+│   │   ├── Fee Summary
+│   │   ├── Exam Summary
+│   │   └── Pinned Schools
+│   │
+│   ├── 📊 Attendance Overview
+│   │   ├── School-wise Attendance
+│   │   ├── Student Count
+│   │   └── Attendance Percentage
+│   │
+│   ├── 💰 Fees Overview
+│   │   ├── Total Collected
+│   │   ├── Total Pending
+│   │   └── School-wise Fee Status
+│   │
+│   ├── 📝 Exams Overview
+│   │   ├── Weekly Exams
+│   │   ├── Exam Schedule
+│   │   └── On Track / Lagging
+│   │
+│   └── 👤 Account
+│       ├── Profile
+│       ├── Notifications
+│       ├── Language & Region
+│       └── Help & Support
+│
+└── Future Features
+    └── Feedback System
