@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
+import 'screens/signup_screen.dart';
+
 
 Future<void> main() async {
    WidgetsFlutterBinding.ensureInitialized();
@@ -56,7 +58,8 @@ class MyApp extends StatelessWidget {
         // tested with just a hot reload.
         colorScheme: ColorScheme.fromSeed(seedColor: const Color.fromARGB(255, 210, 220, 12)),
       ),
-      home: const MyHomePage(title: 'Application test: 1'),
+      home: const SignUpScreen(),
+
     );
   }
 }
