@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../models/signup_model.dart' ;
 
 class SignUpScreen extends StatefulWidget {
   const SignUpScreen({super.key});
@@ -36,17 +37,24 @@ class _SignUpScreenState extends State<SignUpScreen> {
     if (!_formKey.currentState!.validate()) {
       return; // Stop if form validation fails
     }
+     final signupData = SignupModel(
+    name: _fullNameController.text.trim(),
+    email: _emailController.text.trim(),
+    password: _passwordController.text,
+    confirmPassword: _confirmPasswordController.text,
+  );
+
+  if (!signupData.passwordsMatch) {
+    return;
+  }
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      final user = await _authService.signUpWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
-        fullName: _fullNameController.text.trim(),
-      );
+      final user = await _authService.signUp(signupData);
+        
 
       if (user != null && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
