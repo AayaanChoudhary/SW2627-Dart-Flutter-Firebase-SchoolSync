@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:mobile_app/screens/login_screen.dart';
 import '../services/auth_service.dart';
 import '../models/signup_model.dart' ;
 
@@ -246,6 +247,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                           'Sign Up',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                         ),
+                ),
+                // Sign In button
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
+                      ),
+                    );
+                  },
+                  child: const Text('Already have an account? Sign In'),
                 ),
               ],
             ),
