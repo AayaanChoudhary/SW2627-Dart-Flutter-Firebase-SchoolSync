@@ -30,8 +30,6 @@ class AuthService {
     }
   }
 
-  /// Signs in an existing user using [LoginModel.EmailIdentifier] as the
-  /// backend search key — Firebase resolves the account by this email.
   Future<User?> signIn(LoginModel loginData) async {
     try {
       final UserCredential result =
@@ -40,6 +38,15 @@ class AuthService {
         // for consistent backend searching/lookup.
         email: loginData.EmailIdentifier,
         password: loginData.password,
+      );
+      return result.user;
+    } on FirebaseAuthException catch (e) {
+      throw _handleAuthException(e);
+    } catch (e) {
+      throw Exception('An unexpected error occurred: $e');
+    }
+  }
+
   // Sign In with Email and Password
   Future<User?> signInWithEmailAndPassword({
     required String email,
