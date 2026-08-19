@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'firebase_options.dart';
-import 'screens/signup_screen.dart';
+import 'models/seeddata.dart';
 import 'screens/dashboard_screen.dart';
 
 Future<void> main() async {
@@ -10,6 +10,11 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Run only when explicitly requested for a development seed operation.
+    if (const bool.fromEnvironment('SEED_FIRESTORE')) {
+      await seedFirestore();
+    }
 
     debugPrint('🔥 Firebase initialized successfully');
 

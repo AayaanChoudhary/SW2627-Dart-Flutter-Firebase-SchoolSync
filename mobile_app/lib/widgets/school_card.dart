@@ -1,128 +1,99 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
-
-import '../models/school.dart';
+import '../services/dashboard_service.dart';
 import '../utils/app_colors.dart';
 
 class SchoolCard extends StatelessWidget {
-  final School school;
+  final SchoolDashboardData schoolData;
   final int index;
 
   const SchoolCard({
     super.key,
-    required this.school,
+    required this.schoolData,
     required this.index,
   });
 
   @override
   Widget build(BuildContext context) {
-    final rotation = index.isEven ? -0.015 : 0.015;
+    final school = schoolData.school;
+    final isOnTrack = schoolData.examStatus.toLowerCase() == 'on track';
 
-    return Transform.rotate(
-      angle: rotation * pi,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Container(
-            width: double.infinity,
-            constraints: const BoxConstraints(
-              minHeight: 175,
-            ),
-            padding: const EdgeInsets.fromLTRB(18, 28, 14, 14),
-            decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(3),
-              boxShadow: const [
-                BoxShadow(
-                  color: Color(0x44000000),
-                  offset: Offset(3, 5),
-                  blurRadius: 6,
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  school.name,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                Text(
-                  '${_formatStudents(school.students)} STU  ·  ATT ${school.attendance}%',
-                  style: const TextStyle(
-                    color: AppColors.secondaryText,
-                    fontSize: 12,
-                  ),
-                ),
-
-                const Spacer(),
-
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 10,
-                    vertical: 6,
-                  ),
-                  color: school.isOnTrack
-                      ? AppColors.green
-                      : AppColors.pink,
-                  child: Text(
-                    school.status,
-                    style: const TextStyle(
-                      color: AppColors.text,
-                      fontSize: 11,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
-                  ),
-                ),
-              ],
-            ),
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2DCCE), width: 1),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x22000000),
+            offset: Offset(0, 4),
+            blurRadius: 8,
           ),
-
-          // Pin
-          Positioned(
-            top: -10,
-            left: 0,
-            right: 0,
-            child: Center(
-              child: Container(
-                width: 20,
-                height: 20,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: index.isEven
-                      ? const Color(0xFF8FA58A)
-                      : const Color(0xFFC98791),
-                  boxShadow: const [
-                    BoxShadow(
-                      color: Color(0x55000000),
-                      offset: Offset(1, 3),
-                      blurRadius: 4,
-                    ),
-                  ],
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                school.name,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: AppColors.text,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
                 ),
               ),
-            ),
+              const SizedBox(height: 10),
+              Text(
+                '${_formatNumber(school.studentCount)} STU  ·  ATT ${schoolData.latestAttendancePercentage.toStringAsFixed(0)}%',
+                style: const TextStyle(
+                  color: AppColors.secondaryText,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: isOnTrack ? const Color(0xFF8FA57C) : const Color(0xFFC98591),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Text(
+                  isOnTrack ? 'ON TRACK' : 'LAGGING',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+              Icon(
+                isOnTrack ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
+                size: 18,
+                color: isOnTrack ? const Color(0xFF5A7552) : const Color(0xFFB54C5D),
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  String _formatStudents(int number) {
-    return number.toString().replaceAllMapped(
-          RegExp(r'(\d)(?=(\d{3})+$)'),
-          (match) => '${match.group(1)},',
-        );
-  }
+  String _formatNumber(int number) =>
+      number.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
 }
