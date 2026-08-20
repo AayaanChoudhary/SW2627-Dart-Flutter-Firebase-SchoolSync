@@ -7,6 +7,7 @@ import '../utils/app_colors.dart';
 import '../widgets/dashboard_bottom_nav.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/school_card.dart';
+import '../widgets/school_search_bar.dart';
 import '../widgets/stat_card.dart';
 import 'login_screen.dart';
 
@@ -24,6 +25,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final Timer _refreshTimer;
   int _currentIndex = 0;
 
+  // ── Search state ────────────────────────────────────────────────────────────
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
   @override
   void initState() {
     super.initState();
@@ -36,8 +41,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void dispose() {
     _refreshTimer.cancel();
+    _searchController.dispose();
     super.dispose();
   }
+
 
   void _reload() {
     setState(() {
@@ -105,7 +112,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
                         const SizedBox(height: 24),
 
-                        // Main Board Overview Content
+                        // ── Stat Summary Cards ─────────────────────────
                         Row(
                           children: [
                             StatCard(
@@ -128,61 +135,126 @@ class _DashboardScreenState extends State<DashboardScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 32),
+                        const SizedBox(height: 28),
 
-                        // Pinned Schools Header
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            const Text(
-                              'Pinned Schools',
-                              style: TextStyle(
-                                color: AppColors.card,
-                                fontSize: 24,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            Text(
-                              '${schools.length} TOTAL',
-                              style: const TextStyle(
-                                color: Color(0xFFC7BDB3),
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 1.2,
-                              ),
-                            ),
-                          ],
+                        // ── School Search Bar ───────────────────────────
+                        SchoolSearchBar(
+                          controller: _searchController,
+                          query: _searchQuery,
+                          onChanged: (q) =>
+                              setState(() => _searchQuery = q.trim()),
                         ),
 
-                        const SizedBox(height: 18),
+                        const SizedBox(height: 24),
 
-                        if (schools.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(32),
-                              child: Text(
-                                'No schools found for this district.',
-                                style: TextStyle(color: AppColors.card),
-                              ),
-                            ),
-                          )
-                        else
-                          GridView.builder(
-                            shrinkWrap: true,
-                            physics: const NeverScrollableScrollPhysics(),
-                            itemCount: schools.length,
-                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 14,
-                              mainAxisSpacing: 16,
-                              childAspectRatio: 0.94,
-                            ),
-                            itemBuilder: (context, idx) => SchoolCard(
-                              schoolData: schools[idx],
-                              index: idx,
-                            ),
-                          ),
+                        // ── Filtered schools list ───────────────────────
+                        Builder(
+                          builder: (_) {
+                            final q = _searchQuery.toLowerCase();
+                            final filteredSchools = q.isEmpty
+                                ? schools
+                                : schools.where((s) {
+                                    return s.school.name
+                                            .toLowerCase()
+                                            .contains(q) ||
+                                        s.school.schoolId
+                                            .toLowerCase()
+                                            .contains(q);
+                                  }).toList();
+
+                            return Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Pinned Schools Header
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    const Text(
+                                      'Pinned Schools',
+                                      style: TextStyle(
+                                        color: AppColors.card,
+                                        fontSize: 24,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    Text(
+                                      q.isEmpty
+                                          ? '${schools.length} TOTAL'
+                                          : '${filteredSchools.length} OF ${schools.length}',
+                                      style: const TextStyle(
+                                        color: Color(0xFFC7BDB3),
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold,
+                                        letterSpacing: 1.2,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+
+                                const SizedBox(height: 18),
+
+                                // Grid or empty states
+                                if (schools.isEmpty)
+                                  const Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.all(32),
+                                      child: Text(
+                                        'No schools found for this district.',
+                                        style:
+                                            TextStyle(color: AppColors.card),
+                                      ),
+                                    ),
+                                  )
+                                else if (filteredSchools.isEmpty)
+                                  Center(
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          vertical: 40),
+                                      child: Column(
+                                        children: [
+                                          const Icon(
+                                            Icons.search_off_rounded,
+                                            color: Color(0xFFC7BDB3),
+                                            size: 44,
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Text(
+                                            'No schools match "$_searchQuery".',
+                                            textAlign: TextAlign.center,
+                                            style: const TextStyle(
+                                              color: Color(0xFFC7BDB3),
+                                              fontSize: 14,
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  )
+                                else
+                                  GridView.builder(
+                                    shrinkWrap: true,
+                                    physics:
+                                        const NeverScrollableScrollPhysics(),
+                                    itemCount: filteredSchools.length,
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                      crossAxisCount: 2,
+                                      crossAxisSpacing: 14,
+                                      mainAxisSpacing: 16,
+                                      childAspectRatio: 0.94,
+                                    ),
+                                    itemBuilder: (context, idx) => SchoolCard(
+                                      schoolData: filteredSchools[idx],
+                                      index: idx,
+                                    ),
+                                  ),
+                              ],
+                            );
+                          },
+                        ),
+
                       ],
                     ),
                   ),
