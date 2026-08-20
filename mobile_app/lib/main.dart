@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'firebase_options.dart';
+import 'models/seeddata.dart';
 import 'screens/login_screen.dart';
 import 'screens/dashboard_screen.dart';
 
@@ -11,6 +13,21 @@ Future<void> main() async {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
     );
+
+    // Auto-seed asynchronously on startup if the database is completely empty
+    Future.microtask(() async {
+      try {
+        final db = FirebaseFirestore.instance;
+        final schoolSnap = await db.collection('schools').limit(1).get();
+        if (schoolSnap.docs.isEmpty) {
+          debugPrint('🌱 Firestore appears to be empty. Running background seed...');
+          await seedFirestore();
+          debugPrint('🌱 Firestore seeded successfully!');
+        }
+      } catch (e) {
+        debugPrint('⚠️ Auto-seeding check failed: $e');
+      }
+    });
 
     debugPrint('🔥 Firebase initialized successfully');
 
