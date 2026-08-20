@@ -1,11 +1,14 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/dashboard_bottom_nav.dart';
 import '../widgets/dashboard_header.dart';
 import '../widgets/school_card.dart';
 import '../widgets/stat_card.dart';
+import 'login_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -42,8 +45,24 @@ class _DashboardScreenState extends State<DashboardScreen> {
     });
   }
 
+  Future<void> _handleLogout() async {
+    await AuthService().signOut();
+    if (mounted) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        (route) => false,
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+    final userName = (user?.displayName?.isNotEmpty ?? false)
+        ? user!.displayName!
+        : (user?.email?.split('@').first ?? 'Priya');
+
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
@@ -79,11 +98,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const DashboardHeader(userName: 'Priya'),
+                        DashboardHeader(
+                          userName: userName,
+                          onLogout: _handleLogout,
+                        ),
 
                         const SizedBox(height: 24),
 
-                        // 3 Stat Summary Cards Grid
+                        // Main Board Overview Content
                         Row(
                           children: [
                             StatCard(
@@ -150,16 +172,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: schools.length,
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                               crossAxisCount: 2,
                               crossAxisSpacing: 14,
                               mainAxisSpacing: 16,
                               childAspectRatio: 0.94,
                             ),
-                            itemBuilder: (context, index) => SchoolCard(
-                              schoolData: schools[index],
-                              index: index,
+                            itemBuilder: (context, idx) => SchoolCard(
+                              schoolData: schools[idx],
+                              index: idx,
                             ),
                           ),
                       ],
@@ -222,3 +243,5 @@ class _DashboardMessage extends StatelessWidget {
     );
   }
 }
+
+

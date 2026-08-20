@@ -3,10 +3,12 @@ import '../utils/app_colors.dart';
 
 class DashboardHeader extends StatelessWidget {
   final String userName;
+  final VoidCallback? onLogout;
 
   const DashboardHeader({
     super.key,
     required this.userName,
+    this.onLogout,
   });
 
   @override
@@ -31,35 +33,49 @@ class DashboardHeader extends StatelessWidget {
                 letterSpacing: 2.0,
               ),
             ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: const Color(0x33000000),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0x44FFFFFF), width: 0.5),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 6,
-                    height: 6,
-                    decoration: const BoxDecoration(
-                      color: Color(0xFF66BB6A),
-                      shape: BoxShape.circle,
-                    ),
+            Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0x33000000),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0x44FFFFFF), width: 0.5),
                   ),
-                  const SizedBox(width: 6),
-                  const Text(
-                    'Live Sync',
-                    style: TextStyle(
-                      color: AppColors.card,
-                      fontSize: 10,
-                      fontWeight: FontWeight.w600,
-                    ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        width: 6,
+                        height: 6,
+                        decoration: const BoxDecoration(
+                          color: Color(0xFF66BB6A),
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Live Sync',
+                        style: TextStyle(
+                          color: AppColors.card,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (onLogout != null) ...[
+                  const SizedBox(width: 8),
+                  IconButton(
+                    icon: const Icon(Icons.logout_rounded, color: AppColors.card, size: 20),
+                    onPressed: onLogout,
+                    tooltip: 'Sign Out',
+                    constraints: const BoxConstraints(),
+                    padding: const EdgeInsets.all(4),
                   ),
                 ],
-              ),
+              ],
             ),
           ],
         ),
@@ -71,14 +87,18 @@ class DashboardHeader extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
-            Text(
-              'Good morning, $userName',
-              style: const TextStyle(
-                color: AppColors.card,
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+            Expanded(
+              child: Text(
+                'Good morning, $userName',
+                style: const TextStyle(
+                  color: AppColors.card,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
+                ),
+                overflow: TextOverflow.ellipsis,
               ),
             ),
+            const SizedBox(width: 8),
             Container(
               width: 44,
               height: 44,
