@@ -3,15 +3,25 @@ class SignupModel {
   final String email;
   final String password;
   final String confirmPassword;
+  final String district;
 
   SignupModel({
     required this.name,
     required this.email,
     required this.password,
     required this.confirmPassword,
+    this.district = '',
   });
 
   bool get passwordsMatch => password == confirmPassword;
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name.trim(),
+      'email': email.trim().toLowerCase(),
+      'district': district.trim(),
+    };
+  }
 }
 
 // class DistrictOfficerModel {

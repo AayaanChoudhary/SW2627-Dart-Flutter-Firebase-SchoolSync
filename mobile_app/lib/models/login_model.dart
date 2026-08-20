@@ -1,20 +1,29 @@
 /// Model representing a user's login credentials.
 ///
-/// The [EmailIdentifier] getter is the public method used by backend
+/// The [emailIdentifier] getter is the public method used by backend
 /// services to locate/search the user account by their email address.
 class LoginModel {
   final String email;
   final String password;
+  final String district;
 
   const LoginModel({
     required this.email,
     required this.password,
+    this.district = '',
   });
 
   /// Public identifier used for backend searching/lookup.
   /// Firebase Auth (and any future backend) resolves the account
   /// by this value — the user's email address.
-  String get EmailIdentifier => email.trim().toLowerCase();
+  String get emailIdentifier => email.trim().toLowerCase();
+
+  Map<String, dynamic> toMap() {
+    return {
+      'email': emailIdentifier,
+      'district': district.trim(),
+    };
+  }
 
   /// Basic client-side validation before hitting the backend.
   String? validate() {

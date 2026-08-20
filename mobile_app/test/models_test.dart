@@ -7,6 +7,7 @@ import 'package:mobile_app/models/exam_model.dart';
 import 'package:mobile_app/models/feedback_model.dart';
 
 // A simple fake DocumentSnapshot for unit testing the models
+// ignore: subtype_of_sealed_class
 class FakeDocumentSnapshot implements DocumentSnapshot {
   final String _id;
   final Map<String, dynamic> _data;

@@ -36,7 +36,7 @@ class AuthService {
           await _auth.signInWithEmailAndPassword(
         // EmailIdentifier is the public getter that normalises the email
         // for consistent backend searching/lookup.
-        email: loginData.EmailIdentifier,
+        email: loginData.emailIdentifier,
         password: loginData.password,
       );
       return result.user;
@@ -76,15 +76,6 @@ class AuthService {
 
       case 'invalid-email':
         return 'The email address is invalid.';
-      case 'user-not-found':
-      case 'wrong-password':
-      case 'invalid-credential':
-        return 'Invalid email or password.';
-      case 'user-disabled':
-        return 'This user account has been disabled.';
-      case 'too-many-requests':
-        return 'Too many login attempts. Please try again later.';
-
       case 'operation-not-allowed':
         return 'Email/Password auth is not enabled in Firebase Console.';
 
