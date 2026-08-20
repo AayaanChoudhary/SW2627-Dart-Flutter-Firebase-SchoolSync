@@ -4,6 +4,7 @@ import 'package:firebase_core_platform_interface/test.dart';
 import 'package:mobile_app/main.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
   setupFirebaseCoreMocks();
 
   setUpAll(() async {
