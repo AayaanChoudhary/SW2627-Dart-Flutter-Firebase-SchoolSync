@@ -40,18 +40,21 @@ class StatCard extends StatelessWidget {
           children: [
             if (isArrow) ...[
               const SizedBox(height: 8),
-              Container(
-                padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEBF3E8),
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(
-                  Icons.arrow_upward_rounded,
-                  size: 26,
-                  color: Color(0xFF4A6B43),
-                ),
-              ),
+              Builder(builder: (context) {
+                final isLagging = value.toLowerCase().contains('lagging');
+                return Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isLagging ? const Color(0xFFFDEEF0) : const Color(0xFFEBF3E8),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    isLagging ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                    size: 26,
+                    color: isLagging ? const Color(0xFFB54C5D) : const Color(0xFF4A6B43),
+                  ),
+                );
+              }),
               const SizedBox(height: 4),
               Text(
                 value,
