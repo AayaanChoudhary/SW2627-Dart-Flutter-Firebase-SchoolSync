@@ -14,16 +14,12 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
 
-    // Auto-seed asynchronously on startup if the database is completely empty
+    // Auto-seed asynchronously on startup
     Future.microtask(() async {
       try {
-        final db = FirebaseFirestore.instance;
-        final schoolSnap = await db.collection('schools').limit(1).get();
-        if (schoolSnap.docs.isEmpty) {
-          debugPrint('🌱 Firestore appears to be empty. Running background seed...');
-          await seedFirestore();
-          debugPrint('🌱 Firestore seeded successfully!');
-        }
+        debugPrint('🌱 Overwriting Firestore with updated seeded data...');
+        await seedFirestore();
+        debugPrint('🌱 Firestore seeded successfully!');
       } catch (e) {
         debugPrint('⚠️ Auto-seeding check failed: $e');
       }

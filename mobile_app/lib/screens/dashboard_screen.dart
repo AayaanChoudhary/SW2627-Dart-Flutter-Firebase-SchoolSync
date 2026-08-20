@@ -116,7 +116,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
                             StatCard(
                               value: _formatCurrency(summary.totalFeesCollected),
                               label: 'Fees collected',
-                              percentage: 0.77,
+                              percentage: (summary.totalFeesCollected + summary.totalFeesPending) > 0
+                                  ? summary.totalFeesCollected / (summary.totalFeesCollected + summary.totalFeesPending)
+                                  : 0.0,
                             ),
                             StatCard(
                               value: summary.examProgressStatus == 'Lagging'

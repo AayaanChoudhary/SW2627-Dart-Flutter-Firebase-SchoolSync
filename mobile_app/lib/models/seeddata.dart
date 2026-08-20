@@ -1168,7 +1168,7 @@ const List<Map<String, dynamic>> seedAttendance = [
   {
       "schoolId": "SCH001",
       "documentId": "2026-07-29",
-      "attendancePercentage": 92.09,
+      "attendancePercentage": 12.5,
       "date": "2026-07-29",
       "status": "submitted",
       "submittedBy": "USR_001",
@@ -1938,7 +1938,7 @@ const List<Map<String, dynamic>> seedAttendance = [
   {
       "schoolId": "SCH002",
       "documentId": "2026-07-29",
-      "attendancePercentage": 86.97,
+      "attendancePercentage": 15.0,
       "date": "2026-07-29",
       "status": "submitted",
       "submittedBy": "USR_002",
@@ -2708,7 +2708,7 @@ const List<Map<String, dynamic>> seedAttendance = [
   {
       "schoolId": "SCH003",
       "documentId": "2026-07-29",
-      "attendancePercentage": 86.43,
+      "attendancePercentage": 8.0,
       "date": "2026-07-29",
       "status": "submitted",
       "submittedBy": "USR_003",
@@ -3478,7 +3478,7 @@ const List<Map<String, dynamic>> seedAttendance = [
   {
       "schoolId": "SCH004",
       "documentId": "2026-07-29",
-      "attendancePercentage": 88.03,
+      "attendancePercentage": 5.0,
       "date": "2026-07-29",
       "status": "submitted",
       "submittedBy": "USR_004",

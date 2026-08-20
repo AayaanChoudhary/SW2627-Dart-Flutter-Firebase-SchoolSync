@@ -229,96 +229,68 @@ class DashboardService {
     }
   }
 
-  DistrictDashboardSummary _getFallbackSummary() {
-    final List<SchoolDashboardData> schoolsData = [
-      SchoolDashboardData(
-        school: SchoolModel(
-          schoolId: 'SCH_001',
-          name: 'Greenwood Public School',
-          address: 'Civil Lines, District 1',
-          districtId: 'DIST001',
-          studentCount: 1240,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-        latestAttendancePercentage: 94.0,
-        weeklyAttendancePercentage: 93.5,
-        monthlyAttendancePercentage: 94.2,
-        feeSubmissionRate: 87.0,
-        feesCollected: 610000,
-        feesPending: 90000,
-        examStatus: 'On track',
-        feedbackStatus: 'good',
-      ),
-      SchoolDashboardData(
-        school: SchoolModel(
-          schoolId: 'SCH_002',
-          name: 'Riverdale High',
-          address: 'Sector 4, District 1',
-          districtId: 'DIST001',
-          studentCount: 980,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-        latestAttendancePercentage: 88.0,
-        weeklyAttendancePercentage: 86.5,
-        monthlyAttendancePercentage: 87.8,
-        feeSubmissionRate: 64.0,
-        feesCollected: 380000,
-        feesPending: 210000,
-        examStatus: 'Lagging',
-        feedbackStatus: 'needs_review',
-      ),
-      SchoolDashboardData(
-        school: SchoolModel(
-          schoolId: 'SCH_003',
-          name: "St. Xavier's Academy",
-          address: 'Vaishali Nagar, District 1',
-          districtId: 'DIST001',
-          studentCount: 1120,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-        latestAttendancePercentage: 92.0,
-        weeklyAttendancePercentage: 91.0,
-        monthlyAttendancePercentage: 93.0,
-        feeSubmissionRate: 90.0,
-        feesCollected: 450000,
-        feesPending: 50000,
-        examStatus: 'On track',
-        feedbackStatus: 'good',
-      ),
-      SchoolDashboardData(
-        school: SchoolModel(
-          schoolId: 'SCH_004',
-          name: 'Northgate Convent',
-          address: 'Model Town, District 1',
-          districtId: 'DIST001',
-          studentCount: 850,
-          createdAt: DateTime.now(),
-          updatedAt: DateTime.now(),
-        ),
-        latestAttendancePercentage: 89.0,
-        weeklyAttendancePercentage: 88.0,
-        monthlyAttendancePercentage: 90.0,
-        feeSubmissionRate: 72.0,
-        feesCollected: 400000,
-        feesPending: 210000,
-        examStatus: 'Lagging',
-        feedbackStatus: 'good',
-      ),
-    ];
+  double _getLatestAttendanceFromSeed(String schoolId) {
+    final logs = seedAttendance.where((log) => log['schoolId'] == schoolId).toList();
+    if (logs.isNotEmpty) {
+      return (logs.last['attendancePercentage'] as num).toDouble();
+    }
+    return 90.0;
+  }
 
-    // Append remaining seedSchools dynamically
-    for (int i = 0; i < seedSchools.length && i < 8; i++) {
-      final item = seedSchools[i];
-      final id = item['schoolId'] as String;
-      if (schoolsData.any((s) => s.school.schoolId == id)) continue;
+  double _getFeesCollectedFromSeed(String schoolId) {
+    final periods = seedFeePeriods.where((p) => p['schoolId'] == schoolId).toList();
+    if (periods.isNotEmpty) {
+      final active = periods.where((p) => p['status'] == 'active');
+      final target = active.isNotEmpty ? active.first : periods.last;
+      return (target['totalSubmitted'] as num).toDouble();
+    }
+    return 100000.0;
+  }
+
+  double _getFeesPendingFromSeed(String schoolId) {
+    final periods = seedFeePeriods.where((p) => p['schoolId'] == schoolId).toList();
+    if (periods.isNotEmpty) {
+      final active = periods.where((p) => p['status'] == 'active');
+      final target = active.isNotEmpty ? active.first : periods.last;
+      final due = (target['totalDue'] as num).toDouble();
+      final sub = (target['totalSubmitted'] as num).toDouble();
+      return due - sub;
+    }
+    return 20000.0;
+  }
+
+  String _getExamStatusFromSeed(String schoolId) {
+    final exams = seedExams.where((e) => e['schoolId'] == schoolId).toList();
+    for (final exam in exams) {
+      final status = exam['status'] as String;
+      final dateStr = exam['scheduledDate'] as String;
+      final scheduledDate = DateTime.parse(dateStr);
+      if (status == 'scheduled' && scheduledDate.isBefore(DateTime.now())) {
+        return 'Lagging';
+      }
+    }
+    return 'On track';
+  }
+
+  DistrictDashboardSummary _getFallbackSummary() {
+    final List<SchoolDashboardData> schoolsData = [];
+
+    // Filter Jaipur (DIST001) schools from seedSchools
+    final jaipurSchools = seedSchools.where((s) => s['districtId'] == 'DIST001').toList();
+
+    for (int i = 0; i < jaipurSchools.length; i++) {
+      final item = jaipurSchools[i];
+      final schoolId = item['schoolId'] as String;
+
+      final latestAtt = _getLatestAttendanceFromSeed(schoolId);
+      final collected = _getFeesCollectedFromSeed(schoolId);
+      final pending = _getFeesPendingFromSeed(schoolId);
+      final examStat = _getExamStatusFromSeed(schoolId);
 
       schoolsData.add(
         SchoolDashboardData(
           school: SchoolModel(
-            schoolId: id,
+            schoolId: schoolId,
             name: item['name'] as String,
             address: item['address'] as String,
             districtId: item['districtId'] as String,
@@ -326,24 +298,38 @@ class DashboardService {
             createdAt: DateTime.now(),
             updatedAt: DateTime.now(),
           ),
-          latestAttendancePercentage: 85.0 + (i * 3) % 13,
-          weeklyAttendancePercentage: 86.0,
-          monthlyAttendancePercentage: 87.0,
-          feeSubmissionRate: 80.0,
-          feesCollected: 250000.0 + i * 30000,
-          feesPending: 40000.0,
-          examStatus: i % 3 == 0 ? 'Lagging' : 'On track',
-          feedbackStatus: 'good',
+          latestAttendancePercentage: latestAtt,
+          weeklyAttendancePercentage: latestAtt,
+          monthlyAttendancePercentage: latestAtt,
+          feeSubmissionRate: (collected + pending) > 0 ? (collected / (collected + pending)) * 100.0 : 0.0,
+          feesCollected: collected,
+          feesPending: pending,
+          examStatus: examStat,
+          feedbackStatus: i % 4 == 0 ? 'needs_review' : 'good',
         ),
       );
     }
 
+    double attSum = 0.0;
+    double collectedSum = 0.0;
+    double pendingSum = 0.0;
+    bool isLagging = false;
+    for (final s in schoolsData) {
+      attSum += s.latestAttendancePercentage;
+      collectedSum += s.feesCollected;
+      pendingSum += s.feesPending;
+      if (s.examStatus == 'Lagging') {
+        isLagging = true;
+      }
+    }
+    final avgAttendance = schoolsData.isNotEmpty ? attSum / schoolsData.length : 0.0;
+
     return DistrictDashboardSummary(
-      averageAttendanceToday: 92.0,
-      totalFeesCollected: 1840000.0,
-      totalFeesPending: 560000.0,
+      averageAttendanceToday: avgAttendance,
+      totalFeesCollected: collectedSum,
+      totalFeesPending: pendingSum,
       weeklyExamsCount: 6,
-      examProgressStatus: 'On track',
+      examProgressStatus: isLagging ? 'Lagging' : 'On track',
       schoolsData: schoolsData,
     );
   }
