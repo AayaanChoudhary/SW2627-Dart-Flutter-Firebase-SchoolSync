@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../models/attendance_model.dart';
+import '../../services/attendance_service.dart';
 import '../../services/dashboard_service.dart';
 import '../../utils/app_colors.dart';
 import '../../widgets/school_detail/attendance_gauge.dart';
@@ -20,15 +21,15 @@ class AttendanceTab extends StatefulWidget {
 }
 
 class _AttendanceTabState extends State<AttendanceTab> {
-  final DashboardService _service = DashboardService();
+  final AttendanceService _attendanceService = AttendanceService();
   late Future<List<AttendanceModel>> _future;
   int _modeIndex = 0; // 0=Daily, 1=Weekly, 2=Monthly
 
   @override
   void initState() {
     super.initState();
-    _future =
-        _service.getSchoolAttendanceHistory(widget.schoolData.school.schoolId);
+    _future = _attendanceService
+        .getSchoolAttendanceHistory(widget.schoolData.school.schoolId);
   }
 
   // ── Derived values ──────────────────────────────────────────────────────────
