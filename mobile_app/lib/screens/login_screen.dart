@@ -3,6 +3,7 @@ import '../services/auth_service.dart';
 import '../models/login_model.dart';
 import '../utils/app_colors.dart';
 import 'signup_screen.dart';
+import 'forgot_password_screen.dart';
 import 'dashboard_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -253,7 +254,14 @@ class _LoginScreenState extends State<LoginScreen> {
                             alignment: Alignment.centerRight,
                             child: GestureDetector(
                               onTap: () {
-                                _showMessage('Password reset instructions will be sent to your email.');
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ForgotPasswordScreen(
+                                      initialEmail: _emailController.text,
+                                    ),
+                                  ),
+                                );
                               },
                               child: const Text(
                                 'Forgot password?',
