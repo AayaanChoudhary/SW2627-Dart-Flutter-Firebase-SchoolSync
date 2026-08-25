@@ -7,6 +7,7 @@ class StatCard extends StatelessWidget {
   final String label;
   final double? percentage;
   final bool isArrow;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key,
@@ -14,30 +15,33 @@ class StatCard extends StatelessWidget {
     required this.label,
     this.percentage,
     this.isArrow = false,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: Container(
-        height: 175,
-        margin: const EdgeInsets.symmetric(horizontal: 4),
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: const Color(0xFFE2DCCE), width: 1),
-          boxShadow: const [
-            BoxShadow(
-              offset: Offset(0, 4),
-              blurRadius: 10,
-              color: Color(0x22000000),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 175,
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: const Color(0xFFE2DCCE), width: 1),
+            boxShadow: const [
+              BoxShadow(
+                offset: Offset(0, 4),
+                blurRadius: 10,
+                color: Color(0x22000000),
+              ),
+            ],
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
             if (isArrow) ...[
               const SizedBox(height: 8),
               Builder(builder: (context) {
@@ -110,8 +114,9 @@ class StatCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
 
 class _SemiCircularGaugePainter extends CustomPainter {

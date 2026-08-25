@@ -1,0 +1,542 @@
+import 'package:flutter/material.dart';
+import '../../services/dashboard_service.dart';
+import '../../utils/app_colors.dart';
+import '../../widgets/district_summary_banner.dart';
+import '../../widgets/filter_chip_row.dart';
+import '../../widgets/school_search_bar.dart';
+import '../school_detail_screen.dart';
+
+enum ExamStatusFilter { all, lagging, onTrack }
+
+enum ExamSortOption { laggingFirst, onTrackFirst, name, students }
+
+class ExamsListScreen extends StatefulWidget {
+  final DistrictDashboardSummary summary;
+  final VoidCallback? onRefresh;
+
+  const ExamsListScreen({
+    super.key,
+    required this.summary,
+    this.onRefresh,
+  });
+
+  @override
+  State<ExamsListScreen> createState() => _ExamsListScreenState();
+}
+
+class _ExamsListScreenState extends State<ExamsListScreen> {
+  final TextEditingController _searchController = TextEditingController();
+  String _searchQuery = '';
+
+  ExamStatusFilter _statusFilter = ExamStatusFilter.all;
+  ExamSortOption _sortOption = ExamSortOption.laggingFirst;
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  List<SchoolDashboardData> _getFilteredSchools() {
+    final schools = widget.summary.schoolsData;
+    final query = _searchQuery.trim().toLowerCase();
+
+    final filtered = schools.where((s) {
+      // 1. Search filter
+      if (query.isNotEmpty) {
+        final matchesName = s.school.name.toLowerCase().contains(query);
+        final matchesId = s.school.schoolId.toLowerCase().contains(query);
+        if (!matchesName && !matchesId) return false;
+      }
+
+      // 2. Status filter
+      final isLagging = s.examStatus.toLowerCase() == 'lagging';
+      switch (_statusFilter) {
+        case ExamStatusFilter.all:
+          return true;
+        case ExamStatusFilter.lagging:
+          return isLagging;
+        case ExamStatusFilter.onTrack:
+          return !isLagging;
+      }
+    }).toList();
+
+    // 3. Sorting logic
+    filtered.sort((a, b) {
+      final aLagging = a.examStatus.toLowerCase() == 'lagging';
+      final bLagging = b.examStatus.toLowerCase() == 'lagging';
+
+      switch (_sortOption) {
+        case ExamSortOption.laggingFirst:
+          if (aLagging && !bLagging) return -1;
+          if (!aLagging && bLagging) return 1;
+          return a.school.name.compareTo(b.school.name);
+        case ExamSortOption.onTrackFirst:
+          if (!aLagging && bLagging) return -1;
+          if (aLagging && !bLagging) return 1;
+          return a.school.name.compareTo(b.school.name);
+        case ExamSortOption.name:
+          return a.school.name.compareTo(b.school.name);
+        case ExamSortOption.students:
+          return b.school.studentCount.compareTo(a.school.studentCount);
+      }
+    });
+
+    return filtered;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final schools = widget.summary.schoolsData;
+    final filteredSchools = _getFilteredSchools();
+
+    int laggingCount = 0;
+    int onTrackCount = 0;
+    for (final s in schools) {
+      if (s.examStatus.toLowerCase() == 'lagging') {
+        laggingCount++;
+      } else {
+        onTrackCount++;
+      }
+    }
+
+    final isDistrictLagging = widget.summary.examProgressStatus.toLowerCase() == 'lagging';
+
+    return RefreshIndicator(
+      onRefresh: () async {
+        widget.onRefresh?.call();
+      },
+      child: SingleChildScrollView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.fromLTRB(20, 20, 20, 110),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // ── Section Header ──────────────────────────────────────────
+            const Text(
+              'ACADEMIC ASSESSMENTS',
+              style: TextStyle(
+                color: Color(0xFFC7BDB3),
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 2.0,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'District Exam Status',
+              style: TextStyle(
+                color: AppColors.card,
+                fontSize: 26,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            // ── District Summary Banner ────────────────────────────────
+            DistrictSummaryBanner(
+              title: 'District Assessment Status',
+              metrics: [
+                DistrictSummaryMetric(
+                  label: 'Overall Status',
+                  value: isDistrictLagging ? 'Lagging' : 'On Track',
+                  subtitle: isDistrictLagging ? 'Action required' : 'Schedules normal',
+                  valueColor: isDistrictLagging ? const Color(0xFFC98591) : const Color(0xFF4A6741),
+                  icon: isDistrictLagging ? Icons.arrow_downward_rounded : Icons.arrow_upward_rounded,
+                ),
+                DistrictSummaryMetric(
+                  label: 'Lagging Schools',
+                  value: '$laggingCount',
+                  subtitle: laggingCount > 0 ? 'Overdue exams' : 'All schools current',
+                  valueColor: laggingCount > 0 ? const Color(0xFFC98591) : const Color(0xFF4A6741),
+                  icon: Icons.warning_amber_rounded,
+                ),
+                DistrictSummaryMetric(
+                  label: 'On Track',
+                  value: '$onTrackCount',
+                  subtitle: '${schools.length} Total schools',
+                  valueColor: const Color(0xFF4A6741),
+                  icon: Icons.check_circle_outline_rounded,
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Search Bar ──────────────────────────────────────────────
+            SchoolSearchBar(
+              controller: _searchController,
+              query: _searchQuery,
+              onChanged: (q) => setState(() => _searchQuery = q),
+              hintText: 'Filter by school name or ID…',
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Status Filter Chips ─────────────────────────────────────
+            FilterChipRow<ExamStatusFilter>(
+              items: [
+                FilterChipItem(
+                  value: ExamStatusFilter.all,
+                  label: 'All Schools',
+                  count: schools.length,
+                ),
+                FilterChipItem(
+                  value: ExamStatusFilter.lagging,
+                  label: 'Lagging',
+                  icon: Icons.warning_amber_rounded,
+                  count: laggingCount,
+                ),
+                FilterChipItem(
+                  value: ExamStatusFilter.onTrack,
+                  label: 'On Track',
+                  icon: Icons.check_circle_outline_rounded,
+                  count: onTrackCount,
+                ),
+              ],
+              selectedValue: _statusFilter,
+              onSelected: (val) => setState(() => _statusFilter = val),
+            ),
+
+            const SizedBox(height: 14),
+
+            // ── Sort / Results Count Bar ────────────────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${filteredSchools.length} OF ${schools.length} SCHOOLS',
+                  style: const TextStyle(
+                    color: Color(0xFFC7BDB3),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                PopupMenuButton<ExamSortOption>(
+                  initialValue: _sortOption,
+                  onSelected: (val) => setState(() => _sortOption = val),
+                  color: AppColors.card,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0x22000000),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0x33FFFFFF)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        const Icon(Icons.sort_rounded, color: AppColors.card, size: 16),
+                        const SizedBox(width: 6),
+                        Text(
+                          _getSortLabel(_sortOption),
+                          style: const TextStyle(
+                            color: AppColors.card,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const Icon(Icons.arrow_drop_down_rounded, color: AppColors.card, size: 18),
+                      ],
+                    ),
+                  ),
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: ExamSortOption.laggingFirst,
+                      child: Text('Lagging Schools First'),
+                    ),
+                    const PopupMenuItem(
+                      value: ExamSortOption.onTrackFirst,
+                      child: Text('On Track Schools First'),
+                    ),
+                    const PopupMenuItem(
+                      value: ExamSortOption.name,
+                      child: Text('School Name (A-Z)'),
+                    ),
+                    const PopupMenuItem(
+                      value: ExamSortOption.students,
+                      child: Text('Student Count (High-Low)'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // ── School Exam Cards List / Empty State ────────────────────
+            if (filteredSchools.isEmpty)
+              _buildEmptyState()
+            else
+              ListView.separated(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filteredSchools.length,
+                separatorBuilder: (context, index) => const SizedBox(height: 12),
+                itemBuilder: (context, index) {
+                  final schoolData = filteredSchools[index];
+                  return _ExamSchoolCard(
+                    schoolData: schoolData,
+                    onTap: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => SchoolDetailScreen(
+                            schoolData: schoolData,
+                            initialTabIndex: 2, // Exams tab
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _getSortLabel(ExamSortOption opt) {
+    switch (opt) {
+      case ExamSortOption.laggingFirst:
+        return 'Lagging First';
+      case ExamSortOption.onTrackFirst:
+        return 'On Track First';
+      case ExamSortOption.name:
+        return 'Name';
+      case ExamSortOption.students:
+        return 'Students';
+    }
+  }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        child: Column(
+          children: [
+            const Icon(
+              Icons.search_off_rounded,
+              color: Color(0xFFC7BDB3),
+              size: 48,
+            ),
+            const SizedBox(height: 14),
+            const Text(
+              'No schools match the selected status',
+              style: TextStyle(
+                color: AppColors.card,
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 6),
+            const Text(
+              'Try changing your status filter or search query.',
+              style: TextStyle(
+                color: Color(0xFFC7BDB3),
+                fontSize: 13,
+              ),
+            ),
+            const SizedBox(height: 18),
+            OutlinedButton.icon(
+              onPressed: () {
+                setState(() {
+                  _searchController.clear();
+                  _searchQuery = '';
+                  _statusFilter = ExamStatusFilter.all;
+                  _sortOption = ExamSortOption.laggingFirst;
+                });
+              },
+              icon: const Icon(Icons.refresh_rounded, color: AppColors.card, size: 16),
+              label: const Text(
+                'Reset Filters',
+                style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold),
+              ),
+              style: OutlinedButton.styleFrom(
+                side: const BorderSide(color: Color(0x66FFFFFF)),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _ExamSchoolCard extends StatelessWidget {
+  final SchoolDashboardData schoolData;
+  final VoidCallback onTap;
+
+  const _ExamSchoolCard({
+    required this.schoolData,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final school = schoolData.school;
+    final isLagging = schoolData.examStatus.toLowerCase() == 'lagging';
+
+    final statusColor = isLagging ? const Color(0xFFC98591) : const Color(0xFF4A6741);
+    final statusBg = isLagging ? const Color(0xFFFAEAED) : const Color(0xFFE8F0E5);
+    final statusBorder = isLagging ? const Color(0xFFE0BAC0) : const Color(0xFFB5CEAD);
+
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AppColors.card,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFFE2DCCE), width: 1),
+          boxShadow: const [
+            BoxShadow(
+              color: Color(0x1A000000),
+              offset: Offset(0, 3),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Top: School Info & Primary Status Pill
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        school.name,
+                        style: const TextStyle(
+                          color: AppColors.text,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '${school.schoolId}  ·  ${school.address}',
+                        style: const TextStyle(
+                          color: AppColors.secondaryText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w500,
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    color: isLagging ? const Color(0xFFC98591) : const Color(0xFF8FA57C),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        isLagging ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+                        size: 13,
+                        color: Colors.white,
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        isLagging ? 'LAGGING' : 'ON TRACK',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 10,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: 0.8,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+
+            const SizedBox(height: 14),
+
+            // Middle status card banner
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              decoration: BoxDecoration(
+                color: statusBg,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: statusBorder),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isLagging ? Icons.schedule_rounded : Icons.event_available_rounded,
+                    color: statusColor,
+                    size: 18,
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      isLagging
+                          ? 'Assessments overdue or behind target schedule'
+                          : 'All term assessments progressing on schedule',
+                      style: TextStyle(
+                        color: statusColor,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right_rounded,
+                    color: AppColors.secondaryText,
+                    size: 18,
+                  ),
+                ],
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // Bottom metadata row
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${_formatNumber(school.studentCount)} students enrolled',
+                  style: const TextStyle(
+                    color: AppColors.secondaryText,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                Text(
+                  'Attendance: ${schoolData.latestAttendancePercentage.toStringAsFixed(0)}%',
+                  style: const TextStyle(
+                    color: AppColors.secondaryText,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _formatNumber(int n) =>
+      n.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
+}
