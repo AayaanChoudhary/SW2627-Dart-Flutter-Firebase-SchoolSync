@@ -14,8 +14,13 @@ import 'school_detail/feedback_tab.dart';
 ///   3 – Feedback
 class SchoolDetailScreen extends StatefulWidget {
   final SchoolDashboardData schoolData;
+  final int initialTabIndex;
 
-  const SchoolDetailScreen({super.key, required this.schoolData});
+  const SchoolDetailScreen({
+    super.key,
+    required this.schoolData,
+    this.initialTabIndex = 0,
+  });
 
   @override
   State<SchoolDetailScreen> createState() => _SchoolDetailScreenState();
@@ -30,7 +35,11 @@ class _SchoolDetailScreenState extends State<SchoolDetailScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: _tabs.length, vsync: this);
+    _tabController = TabController(
+      length: _tabs.length,
+      vsync: this,
+      initialIndex: widget.initialTabIndex.clamp(0, _tabs.length - 1),
+    );
     _tabController.addListener(() => setState(() {}));
   }
 
