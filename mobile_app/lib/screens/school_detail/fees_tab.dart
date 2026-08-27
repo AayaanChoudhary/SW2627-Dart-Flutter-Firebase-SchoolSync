@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/fee_period_model.dart';
 import '../../services/dashboard_service.dart';
+import '../../services/fee_service.dart';
 import '../../utils/app_colors.dart';
 import '../../widgets/school_detail/attendance_gauge.dart';
 import '../../widgets/school_detail/section_header.dart';
@@ -18,7 +19,7 @@ class FeesTab extends StatefulWidget {
 }
 
 class _FeesTabState extends State<FeesTab> {
-  final DashboardService _service = DashboardService();
+  final FeeService _service = FeeService();
   late Future<List<FeePeriodModel>> _future;
 
   @override
