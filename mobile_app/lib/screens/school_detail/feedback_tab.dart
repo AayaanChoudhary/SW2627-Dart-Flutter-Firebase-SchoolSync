@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/feedback_model.dart';
 import '../../services/dashboard_service.dart';
+import '../../services/feedback_service.dart';
 import '../../utils/app_colors.dart';
 import '../../widgets/school_detail/section_header.dart';
 
@@ -18,7 +19,7 @@ class FeedbackTab extends StatefulWidget {
 }
 
 class _FeedbackTabState extends State<FeedbackTab> {
-  final DashboardService _service = DashboardService();
+  final FeedbackService _service = FeedbackService();
   final TextEditingController _textController = TextEditingController();
 
   late Future<List<FeedbackModel>> _historyFuture;

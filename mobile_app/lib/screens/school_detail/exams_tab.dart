@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/exam_model.dart';
 import '../../services/dashboard_service.dart';
+import '../../services/exam_service.dart';
 import '../../utils/app_colors.dart';
 import '../../widgets/school_detail/section_header.dart';
 
@@ -16,7 +17,7 @@ class ExamsTab extends StatefulWidget {
 }
 
 class _ExamsTabState extends State<ExamsTab> {
-  final DashboardService _service = DashboardService();
+  final ExamService _service = ExamService();
   late Future<List<ExamModel>> _future;
 
   @override
