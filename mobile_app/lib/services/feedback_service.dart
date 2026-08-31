@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/feedback_model.dart';
-import '../models/seeddata.dart';
 
 class FeedbackService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Files a feedback report for a specific school.
+  /// Files a feedback report for a specific school in Cloud Firestore.
   Future<void> fileFeedbackReport({
     required String schoolId,
     required String text,
@@ -26,7 +25,7 @@ class FeedbackService {
     });
   }
 
-  /// Fetches feedback records for a specific school (latest first).
+  /// Fetches feedback records for a specific school (latest first) strictly from Cloud Firestore.
   Future<List<FeedbackModel>> getSchoolFeedback(String schoolId) async {
     try {
       final snap = await _db
@@ -35,29 +34,11 @@ class FeedbackService {
           .collection('feedback')
           .orderBy('createdAt', descending: true)
           .get()
-          .timeout(const Duration(seconds: 4));
+          .timeout(const Duration(seconds: 8));
 
-      if (snap.docs.isEmpty) {
-        return _getFallbackFeedback(schoolId);
-      }
       return snap.docs.map((d) => FeedbackModel.fromFirestore(d)).toList();
     } catch (e) {
-      return _getFallbackFeedback(schoolId);
+      rethrow;
     }
-  }
-
-  List<FeedbackModel> _getFallbackFeedback(String schoolId) {
-    final logs = seedFeedback.where((log) => log['schoolId'] == schoolId).toList();
-    final List<FeedbackModel> list = logs.map((log) {
-      return FeedbackModel(
-        feedbackId: log['feedbackId'] ?? '',
-        text: log['text'] ?? '',
-        symbol: log['symbol'] ?? 'good',
-        createdBy: log['createdBy'] ?? '',
-        createdAt: DateTime.parse(log['createdAt'] ?? DateTime.now().toIso8601String()),
-      );
-    }).toList();
-    list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-    return list;
   }
 }
