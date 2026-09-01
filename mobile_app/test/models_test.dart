@@ -5,6 +5,7 @@ import 'package:mobile_app/models/attendance_model.dart';
 import 'package:mobile_app/models/fee_period_model.dart';
 import 'package:mobile_app/models/exam_model.dart';
 import 'package:mobile_app/models/feedback_model.dart';
+import 'package:mobile_app/models/user_model.dart';
 
 // A simple fake DocumentSnapshot for unit testing the models
 // ignore: subtype_of_sealed_class
@@ -138,6 +139,35 @@ void main() {
       expect(fb.feedbackId, 'FB001');
       expect(fb.symbol, 'good');
       expect(fb.text, 'Good academic status');
+    });
+
+    test('UserModel - Serialization, deserialization, and District Isolation mapping', () {
+      final doc = FakeDocumentSnapshot('USER123', {
+        'email': 'admin1@district1.com',
+        'name': 'Priya Sharma',
+        'role': 'district_admin',
+        'districtId': 'DIST001',
+      });
+
+      final user = UserModel.fromFirestore(doc);
+      expect(user.uid, 'USER123');
+      expect(user.email, 'admin1@district1.com');
+      expect(user.name, 'Priya Sharma');
+      expect(user.role, 'district_admin');
+      expect(user.districtId, 'DIST001');
+
+      final userMap = user.toMap();
+      expect(userMap['districtId'], 'DIST001');
+      expect(userMap['role'], 'district_admin');
+
+      final user2 = UserModel.fromMap('USER456', {
+        'email': 'admin2@district2.com',
+        'name': 'Rajesh Kumar',
+        'role': 'district_admin',
+        'districtId': 'DIST002',
+      });
+      expect(user2.districtId, 'DIST002');
+      expect(user2.uid, 'USER456');
     });
 
   });

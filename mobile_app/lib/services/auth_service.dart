@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/signup_model.dart';
 import '../models/login_model.dart';
+import '../models/user_model.dart';
+import 'user_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -18,6 +20,20 @@ class AuthService {
       if (user != null) {
         await user.updateDisplayName(signupData.name);
         await user.reload();
+
+        // Create user profile document in Firestore users/{uid}
+        final districtId =
+            signupData.district.trim().isNotEmpty ? signupData.district.trim() : 'DIST001';
+
+        await UserService().saveUserProfile(
+          UserModel(
+            uid: user.uid,
+            email: user.email ?? signupData.email,
+            name: signupData.name,
+            role: 'district_admin',
+            districtId: districtId,
+          ),
+        );
 
         return _auth.currentUser;
       }
