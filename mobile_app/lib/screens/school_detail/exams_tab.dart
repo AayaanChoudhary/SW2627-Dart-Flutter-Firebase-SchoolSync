@@ -3,6 +3,7 @@ import '../../models/exam_model.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/exam_service.dart';
 import '../../utils/app_colors.dart';
+import '../../widgets/firebase_error_view.dart';
 import '../../widgets/school_detail/section_header.dart';
 
 /// Exams tab shown inside SchoolDetailScreen.
@@ -35,16 +36,21 @@ class _ExamsTabState extends State<ExamsTab> {
           return const Center(
               child: CircularProgressIndicator(color: AppColors.text));
         }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(
+        if (snapshot.hasError) {
+          return FirebaseErrorView(
+            title: 'Unable to Load Exam Schedule',
+            message: snapshot.error.toString().replaceAll('Exception: ', ''),
+            onRetry: () => setState(() => _future = _service.getSchoolExams(widget.schoolData.school.schoolId)),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(32),
+              padding: EdgeInsets.all(32),
               child: Text(
-                snapshot.hasError
-                    ? 'Could not load exam data.'
-                    : 'No exam records found.',
+                'No exam records found in Cloud Firestore.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.secondaryText, fontSize: 14),
               ),
             ),

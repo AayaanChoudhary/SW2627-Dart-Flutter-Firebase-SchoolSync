@@ -3,6 +3,7 @@ import '../../models/fee_period_model.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/fee_service.dart';
 import '../../utils/app_colors.dart';
+import '../../widgets/firebase_error_view.dart';
 import '../../widgets/school_detail/attendance_gauge.dart';
 import '../../widgets/school_detail/section_header.dart';
 
@@ -52,16 +53,21 @@ class _FeesTabState extends State<FeesTab> {
           return const Center(
               child: CircularProgressIndicator(color: AppColors.text));
         }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return Center(
+        if (snapshot.hasError) {
+          return FirebaseErrorView(
+            title: 'Unable to Load Fee Records',
+            message: snapshot.error.toString().replaceAll('Exception: ', ''),
+            onRetry: () => setState(() => _future = _service.getSchoolFeePeriods(widget.schoolData.school.schoolId)),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const Center(
             child: Padding(
-              padding: const EdgeInsets.all(32),
+              padding: EdgeInsets.all(32),
               child: Text(
-                snapshot.hasError
-                    ? 'Could not load fee data.'
-                    : 'No fee records found.',
+                'No fee records found in Cloud Firestore.',
                 textAlign: TextAlign.center,
-                style: const TextStyle(
+                style: TextStyle(
                     color: AppColors.secondaryText, fontSize: 14),
               ),
             ),

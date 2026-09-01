@@ -3,6 +3,7 @@ import '../../models/attendance_model.dart';
 import '../../services/attendance_service.dart';
 import '../../services/dashboard_service.dart';
 import '../../utils/app_colors.dart';
+import '../../widgets/firebase_error_view.dart';
 import '../../widgets/school_detail/attendance_gauge.dart';
 import '../../widgets/school_detail/pill_toggle.dart';
 import '../../widgets/school_detail/section_header.dart';
@@ -85,11 +86,16 @@ class _AttendanceTabState extends State<AttendanceTab> {
             child: CircularProgressIndicator(color: AppColors.text),
           );
         }
-        if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-          return _EmptyState(
-            message: snapshot.hasError
-                ? 'Could not load attendance data.'
-                : 'No attendance records found.',
+        if (snapshot.hasError) {
+          return FirebaseErrorView(
+            title: 'Unable to Load Attendance',
+            message: snapshot.error.toString().replaceAll('Exception: ', ''),
+            onRetry: () => setState(() => _future = _attendanceService.getSchoolAttendanceHistory(widget.schoolData.school.schoolId)),
+          );
+        }
+        if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return const _EmptyState(
+            message: 'No attendance records found in Cloud Firestore.',
           );
         }
 

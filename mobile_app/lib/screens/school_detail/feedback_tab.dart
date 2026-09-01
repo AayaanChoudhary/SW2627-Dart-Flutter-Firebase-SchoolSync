@@ -229,6 +229,16 @@ class _FeedbackTabState extends State<FeedbackTab> {
                 return const Center(
                     child: CircularProgressIndicator(color: AppColors.text));
               }
+              if (snapshot.hasError) {
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  child: Text(
+                    'Unable to load past feedback records: ${snapshot.error.toString().replaceAll('Exception: ', '')}',
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(color: AppColors.secondaryText, fontSize: 13),
+                  ),
+                );
+              }
               if (!snapshot.hasData || snapshot.data!.isEmpty) {
                 return const SizedBox.shrink();
               }

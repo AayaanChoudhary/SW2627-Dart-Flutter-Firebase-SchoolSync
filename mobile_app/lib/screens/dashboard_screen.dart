@@ -6,6 +6,7 @@ import '../services/dashboard_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/dashboard_bottom_nav.dart';
 import '../widgets/dashboard_header.dart';
+import '../widgets/firebase_error_view.dart';
 import '../widgets/school_card.dart';
 import '../widgets/school_search_bar.dart';
 import '../widgets/stat_card.dart';
@@ -79,8 +80,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
           future: _dashboardFuture,
           builder: (context, snapshot) {
             if (snapshot.hasError) {
-              return _DashboardMessage(
-                message: 'Unable to load dashboard data.\n${snapshot.error}',
+              return FirebaseErrorView(
+                title: 'Unable to Load Dashboard Data',
+                message: snapshot.error.toString().replaceAll('Exception: ', ''),
                 onRetry: _reload,
               );
             }
@@ -316,36 +318,5 @@ class _DashboardScreenState extends State<DashboardScreen> {
     if (amount >= 100000) return '₹${(amount / 100000).toStringAsFixed(1)}L';
     if (amount >= 1000) return '₹${(amount / 1000).toStringAsFixed(1)}K';
     return '₹${amount.toStringAsFixed(0)}';
-  }
-}
-
-class _DashboardMessage extends StatelessWidget {
-  const _DashboardMessage({required this.message, required this.onRetry});
-
-  final String message;
-  final VoidCallback onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: const TextStyle(color: AppColors.card),
-            ),
-            const SizedBox(height: 12),
-            OutlinedButton(
-              onPressed: onRetry,
-              child: const Text('Retry', style: TextStyle(color: AppColors.card)),
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
