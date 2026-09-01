@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/attendance_model.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/attendance_calculator.dart';
 
 /// Renders the M T W T F S S weekly calendar row.
 /// Each cell shows a green ✓ (attendance present), pink – (absent/weekend),
@@ -13,8 +14,8 @@ class WeekCalendarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    // Monday of the current week
-    final monday = now.subtract(Duration(days: now.weekday - 1));
+    // Monday 00:00 of the current week
+    final monday = AttendanceCalculator.getWeekDateRange(now).start;
 
     const dayLabels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
 

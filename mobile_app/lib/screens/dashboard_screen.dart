@@ -4,8 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
 import '../utils/app_colors.dart';
+import '../widgets/dashboard_action_center.dart';
 import '../widgets/dashboard_bottom_nav.dart';
 import '../widgets/dashboard_header.dart';
+import '../widgets/filter_chip_row.dart';
 import '../widgets/firebase_error_view.dart';
 import '../widgets/school_card.dart';
 import '../widgets/school_search_bar.dart';
@@ -14,6 +16,15 @@ import 'district/attendance_list_screen.dart';
 import 'district/exams_list_screen.dart';
 import 'district/fees_list_screen.dart';
 import 'login_screen.dart';
+
+enum DashboardSortOption {
+  needsAttentionFirst,
+  lowestAttendance,
+  highestAttendance,
+  highestPendingFees,
+  name,
+  studentCount,
+}
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -29,9 +40,11 @@ class _DashboardScreenState extends State<DashboardScreen> {
   late final Timer _refreshTimer;
   int _currentIndex = 0;
 
-  // ── Search state for Board tab ──────────────────────────────────────────────
+  // ── Search & Decision Filter state for Board tab ────────────────────────────
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  DashboardTriageFilter _triageFilter = DashboardTriageFilter.all;
+  DashboardSortOption _sortOption = DashboardSortOption.needsAttentionFirst;
 
   @override
   void initState() {
@@ -63,6 +76,82 @@ class _DashboardScreenState extends State<DashboardScreen> {
         MaterialPageRoute(builder: (context) => const LoginScreen()),
         (route) => false,
       );
+    }
+  }
+
+  List<SchoolDashboardData> _getFilteredBoardSchools(List<SchoolDashboardData> schools) {
+    final q = _searchQuery.trim().toLowerCase();
+
+    // 1. Filter by Search Query & Triage Category
+    final filtered = schools.where((s) {
+      if (q.isNotEmpty) {
+        final matchesName = s.school.name.toLowerCase().contains(q);
+        final matchesId = s.school.schoolId.toLowerCase().contains(q);
+        if (!matchesName && !matchesId) return false;
+      }
+
+      final isCriticalAtt = s.latestAttendancePercentage < 70.0;
+      final isLaggingExam = s.examStatus.toLowerCase() == 'lagging';
+      final isLowFee = s.feeSubmissionRate < 50.0 && s.feesPending > 0;
+      final needsAttention = isCriticalAtt || isLaggingExam || isLowFee;
+
+      switch (_triageFilter) {
+        case DashboardTriageFilter.all:
+          return true;
+        case DashboardTriageFilter.needsAttention:
+          return needsAttention;
+        case DashboardTriageFilter.criticalAttendance:
+          return isCriticalAtt;
+        case DashboardTriageFilter.laggingExams:
+          return isLaggingExam;
+        case DashboardTriageFilter.onTrack:
+          return !needsAttention;
+      }
+    }).toList();
+
+    // 2. Sort by Decision Option
+    filtered.sort((a, b) {
+      switch (_sortOption) {
+        case DashboardSortOption.needsAttentionFirst:
+          final aNeeds = a.latestAttendancePercentage < 70.0 ||
+              a.examStatus.toLowerCase() == 'lagging' ||
+              (a.feeSubmissionRate < 50.0 && a.feesPending > 0);
+          final bNeeds = b.latestAttendancePercentage < 70.0 ||
+              b.examStatus.toLowerCase() == 'lagging' ||
+              (b.feeSubmissionRate < 50.0 && b.feesPending > 0);
+          if (aNeeds && !bNeeds) return -1;
+          if (!aNeeds && bNeeds) return 1;
+          return a.latestAttendancePercentage.compareTo(b.latestAttendancePercentage);
+        case DashboardSortOption.lowestAttendance:
+          return a.latestAttendancePercentage.compareTo(b.latestAttendancePercentage);
+        case DashboardSortOption.highestAttendance:
+          return b.latestAttendancePercentage.compareTo(a.latestAttendancePercentage);
+        case DashboardSortOption.highestPendingFees:
+          return b.feesPending.compareTo(a.feesPending);
+        case DashboardSortOption.name:
+          return a.school.name.compareTo(b.school.name);
+        case DashboardSortOption.studentCount:
+          return b.school.studentCount.compareTo(a.school.studentCount);
+      }
+    });
+
+    return filtered;
+  }
+
+  String _getSortLabel(DashboardSortOption opt) {
+    switch (opt) {
+      case DashboardSortOption.needsAttentionFirst:
+        return 'Priority Risk';
+      case DashboardSortOption.lowestAttendance:
+        return 'Lowest Attendance';
+      case DashboardSortOption.highestAttendance:
+        return 'Highest Attendance';
+      case DashboardSortOption.highestPendingFees:
+        return 'Highest Pending Fees';
+      case DashboardSortOption.name:
+        return 'Name (A-Z)';
+      case DashboardSortOption.studentCount:
+        return 'Student Count';
     }
   }
 
@@ -153,6 +242,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   Widget _buildBoardTab(DistrictDashboardSummary summary, String userName) {
     final schools = summary.schoolsData;
+    final filteredSchools = _getFilteredBoardSchools(schools);
+
+    final criticalAttendanceCount = schools.where((s) => s.latestAttendancePercentage < 70.0).length;
+    final laggingExamsCount = schools.where((s) => s.examStatus.toLowerCase() == 'lagging').length;
+    final needsAttentionCount = schools.where((s) {
+      return s.latestAttendancePercentage < 70.0 ||
+          s.examStatus.toLowerCase() == 'lagging' ||
+          (s.feeSubmissionRate < 50.0 && s.feesPending > 0);
+    }).length;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -170,7 +268,15 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onLogout: _handleLogout,
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 20),
+
+            // ── Executive Decision & Action Center (Alert Hub) ────────
+            DashboardActionCenter(
+              schools: schools,
+              onFilterSelected: (f) => setState(() => _triageFilter = f),
+            ),
+
+            const SizedBox(height: 20),
 
             // ── Stat Summary Cards (Interactive navigation) ─────────
             Row(
@@ -199,7 +305,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               ],
             ),
 
-            const SizedBox(height: 28),
+            const SizedBox(height: 24),
 
             // ── School Search Bar ───────────────────────────
             SchoolSearchBar(
@@ -208,106 +314,192 @@ class _DashboardScreenState extends State<DashboardScreen> {
               onChanged: (q) => setState(() => _searchQuery = q.trim()),
             ),
 
-            const SizedBox(height: 24),
+            const SizedBox(height: 16),
 
-            // ── Filtered schools list ───────────────────────
-            Builder(
-              builder: (_) {
-                final q = _searchQuery.toLowerCase();
-                final filteredSchools = q.isEmpty
-                    ? schools
-                    : schools.where((s) {
-                        return s.school.name.toLowerCase().contains(q) ||
-                            s.school.schoolId.toLowerCase().contains(q);
-                      }).toList();
+            // ── Decision-Making Triage Filter Chips ─────────
+            FilterChipRow<DashboardTriageFilter>(
+              items: [
+                FilterChipItem(
+                  value: DashboardTriageFilter.all,
+                  label: 'All Schools',
+                  count: schools.length,
+                ),
+                FilterChipItem(
+                  value: DashboardTriageFilter.needsAttention,
+                  label: '⚠️ Action Needed',
+                  count: needsAttentionCount,
+                ),
+                FilterChipItem(
+                  value: DashboardTriageFilter.criticalAttendance,
+                  label: '🚨 Low Att (<70%)',
+                  count: criticalAttendanceCount,
+                ),
+                FilterChipItem(
+                  value: DashboardTriageFilter.laggingExams,
+                  label: '⏳ Lagging Exams',
+                  count: laggingExamsCount,
+                ),
+                FilterChipItem(
+                  value: DashboardTriageFilter.onTrack,
+                  label: '✅ On Track',
+                  count: schools.length - needsAttentionCount,
+                ),
+              ],
+              selectedValue: _triageFilter,
+              onSelected: (val) => setState(() => _triageFilter = val),
+            ),
 
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Pinned Schools Header
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      crossAxisAlignment: CrossAxisAlignment.end,
+            const SizedBox(height: 16),
+
+            // ── Sort & Results Count Bar ────────────────────
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text(
+                  '${filteredSchools.length} OF ${schools.length} SCHOOLS',
+                  style: const TextStyle(
+                    color: Color(0xFFC7BDB3),
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.2,
+                  ),
+                ),
+                PopupMenuButton<DashboardSortOption>(
+                  initialValue: _sortOption,
+                  onSelected: (val) => setState(() => _sortOption = val),
+                  color: AppColors.card,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: const Color(0x22000000),
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: const Color(0x33FFFFFF)),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        const Text(
-                          'Pinned Schools',
-                          style: TextStyle(
-                            color: AppColors.card,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
+                        const Icon(Icons.sort_rounded, color: AppColors.card, size: 16),
+                        const SizedBox(width: 6),
                         Text(
-                          q.isEmpty
-                              ? '${schools.length} TOTAL'
-                              : '${filteredSchools.length} OF ${schools.length}',
+                          _getSortLabel(_sortOption),
                           style: const TextStyle(
-                            color: Color(0xFFC7BDB3),
+                            color: AppColors.card,
                             fontSize: 12,
                             fontWeight: FontWeight.bold,
-                            letterSpacing: 1.2,
                           ),
                         ),
+                        const Icon(Icons.arrow_drop_down_rounded, color: AppColors.card, size: 18),
                       ],
                     ),
+                  ),
+                  itemBuilder: (context) => const [
+                    PopupMenuItem(
+                      value: DashboardSortOption.needsAttentionFirst,
+                      child: Text('Priority Risk (Attention First)'),
+                    ),
+                    PopupMenuItem(
+                      value: DashboardSortOption.lowestAttendance,
+                      child: Text('Lowest Attendance First'),
+                    ),
+                    PopupMenuItem(
+                      value: DashboardSortOption.highestAttendance,
+                      child: Text('Highest Attendance First'),
+                    ),
+                    PopupMenuItem(
+                      value: DashboardSortOption.highestPendingFees,
+                      child: Text('Highest Pending Fees First'),
+                    ),
+                    PopupMenuItem(
+                      value: DashboardSortOption.name,
+                      child: Text('School Name (A-Z)'),
+                    ),
+                    PopupMenuItem(
+                      value: DashboardSortOption.studentCount,
+                      child: Text('Student Count (High-Low)'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
 
-                    const SizedBox(height: 18),
+            const SizedBox(height: 14),
 
-                    // Grid or empty states
-                    if (schools.isEmpty)
-                      const Center(
-                        child: Padding(
-                          padding: EdgeInsets.all(32),
-                          child: Text(
-                            'No schools found for this district.',
-                            style: TextStyle(color: AppColors.card),
-                          ),
-                        ),
-                      )
-                    else if (filteredSchools.isEmpty)
-                      Center(
-                        child: Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 40),
-                          child: Column(
-                            children: [
-                              const Icon(
-                                Icons.search_off_rounded,
-                                color: Color(0xFFC7BDB3),
-                                size: 44,
-                              ),
-                              const SizedBox(height: 12),
-                              Text(
-                                'No schools match "$_searchQuery".',
-                                textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  color: Color(0xFFC7BDB3),
-                                  fontSize: 14,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    else
-                      GridView.builder(
-                        shrinkWrap: true,
-                        physics: const NeverScrollableScrollPhysics(),
-                        itemCount: filteredSchools.length,
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 2,
-                          crossAxisSpacing: 14,
-                          mainAxisSpacing: 16,
-                          childAspectRatio: 0.94,
-                        ),
-                        itemBuilder: (context, idx) => SchoolCard(
-                          schoolData: filteredSchools[idx],
-                          index: idx,
+            // ── Grid or empty states ────────────────────────
+            if (schools.isEmpty)
+              const Center(
+                child: Padding(
+                  padding: EdgeInsets.all(32),
+                  child: Text(
+                    'No schools found for this district.',
+                    style: TextStyle(color: AppColors.card),
+                  ),
+                ),
+              )
+            else if (filteredSchools.isEmpty)
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 40),
+                  child: Column(
+                    children: [
+                      const Icon(
+                        Icons.search_off_rounded,
+                        color: Color(0xFFC7BDB3),
+                        size: 44,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        _searchQuery.isNotEmpty
+                            ? 'No schools match "$_searchQuery".'
+                            : 'No schools match the selected triage filter.',
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          color: Color(0xFFC7BDB3),
+                          fontSize: 14,
                         ),
                       ),
-                  ],
-                );
-              },
-            ),
+                      const SizedBox(height: 14),
+                      OutlinedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _searchController.clear();
+                            _searchQuery = '';
+                            _triageFilter = DashboardTriageFilter.all;
+                            _sortOption = DashboardSortOption.needsAttentionFirst;
+                          });
+                        },
+                        icon: const Icon(Icons.refresh_rounded, color: AppColors.card, size: 16),
+                        label: const Text(
+                          'Reset Filters',
+                          style: TextStyle(color: AppColors.card, fontWeight: FontWeight.bold),
+                        ),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: Color(0x66FFFFFF)),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: filteredSchools.length,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 2,
+                  crossAxisSpacing: 14,
+                  mainAxisSpacing: 16,
+                  childAspectRatio: 0.92,
+                ),
+                itemBuilder: (context, idx) => SchoolCard(
+                  schoolData: filteredSchools[idx],
+                  index: idx,
+                ),
+              ),
           ],
         ),
       ),

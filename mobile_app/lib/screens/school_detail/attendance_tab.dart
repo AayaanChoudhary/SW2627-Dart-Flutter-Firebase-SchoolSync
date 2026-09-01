@@ -3,6 +3,7 @@ import '../../models/attendance_model.dart';
 import '../../services/attendance_service.dart';
 import '../../services/dashboard_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/attendance_calculator.dart';
 import '../../widgets/firebase_error_view.dart';
 import '../../widgets/school_detail/attendance_gauge.dart';
 import '../../widgets/school_detail/pill_toggle.dart';
@@ -38,18 +39,14 @@ class _AttendanceTabState extends State<AttendanceTab> {
   double _computePercentage(List<AttendanceModel> records) {
     if (records.isEmpty) return 0.0;
     switch (_modeIndex) {
-      case 0: // Daily — most recent record
-        return records.first.attendancePercentage;
-      case 1: // Weekly — average of last 7 records
-        final slice = records.take(7).toList();
-        return slice.map((r) => r.attendancePercentage).reduce((a, b) => a + b) /
-            slice.length;
-      case 2: // Monthly — average of last 30 records
-        final slice = records.take(30).toList();
-        return slice.map((r) => r.attendancePercentage).reduce((a, b) => a + b) /
-            slice.length;
+      case 0: // Daily — today or most recent record
+        return AttendanceCalculator.getDailyAttendance(records);
+      case 1: // Weekly — strictly Monday 00:00 to Sunday 23:59
+        return AttendanceCalculator.calculateWeeklyAttendance(records);
+      case 2: // Monthly — strictly 1st day to last day of current month
+        return AttendanceCalculator.calculateMonthlyAttendance(records);
       default:
-        return records.first.attendancePercentage;
+        return AttendanceCalculator.getDailyAttendance(records);
     }
   }
 
@@ -63,9 +60,13 @@ class _AttendanceTabState extends State<AttendanceTab> {
       case 0:
         return '$formattedPresent of $formatted students present today';
       case 1:
-        return '$formattedPresent of $formatted students avg this week';
+        final count = AttendanceCalculator.getWeeklyRecordCount(records);
+        if (count == 0) return 'No attendance submitted this week';
+        return '$formattedPresent of $formatted students avg ($count ${count == 1 ? 'day' : 'days'} this week)';
       case 2:
-        return '$formattedPresent of $formatted students avg this month';
+        final count = AttendanceCalculator.getMonthlyRecordCount(records);
+        if (count == 0) return 'No attendance submitted this month';
+        return '$formattedPresent of $formatted students avg ($count ${count == 1 ? 'day' : 'days'} this month)';
       default:
         return '$formattedPresent of $formatted students present today';
     }

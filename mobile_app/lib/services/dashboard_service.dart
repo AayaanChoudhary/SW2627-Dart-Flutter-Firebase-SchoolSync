@@ -5,6 +5,7 @@ import '../models/attendance_model.dart';
 import '../models/fee_period_model.dart';
 import '../models/exam_model.dart';
 import '../models/feedback_model.dart';
+import '../utils/attendance_calculator.dart';
 
 /// Aggregated dashboard data for a single school.
 class SchoolDashboardData {
@@ -82,15 +83,14 @@ class DashboardService {
       int districtWeeklyExamsCount = 0;
       bool isDistrictLagging = false;
 
-      // Define week start and end boundaries (Monday to Sunday)
-      final startOfWeek = now.subtract(Duration(days: now.weekday - 1)).toUtc();
-      final endOfWeek = startOfWeek.add(const Duration(days: 7)).toUtc();
+      // Define week start and end boundaries (Monday 00:00 to Sunday 23:59)
+      final weekRange = AttendanceCalculator.getWeekDateRange(now);
 
       for (final doc in schoolSnap.docs) {
         final school = SchoolModel.fromFirestore(doc);
         final schoolId = school.schoolId;
 
-        // --- 2. Calculate Attendance ---
+        // --- 2. Calculate Attendance with Strict Date Boundaries ---
         final attendanceSnap = await _db
             .collection('schools')
             .doc(schoolId)
@@ -107,19 +107,24 @@ class DashboardService {
         double monthlyAtt = 0.0;
 
         if (attendanceRecords.isNotEmpty) {
-          latestAtt = attendanceRecords.first.attendancePercentage;
+          latestAtt = AttendanceCalculator.getDailyAttendance(
+            attendanceRecords,
+            targetDate: now,
+          );
           attendanceSum += latestAtt;
           schoolsWithAttendanceCount++;
 
-          final weeklyRecords = attendanceRecords.take(7);
-          if (weeklyRecords.isNotEmpty) {
-            weeklyAtt = weeklyRecords.map((r) => r.attendancePercentage).reduce((a, b) => a + b) / weeklyRecords.length;
-          }
+          // Weekly: strictly Monday 00:00:00 to Sunday 23:59:59
+          weeklyAtt = AttendanceCalculator.calculateWeeklyAttendance(
+            attendanceRecords,
+            targetDate: now,
+          );
 
-          final monthlyRecords = attendanceRecords.take(30);
-          if (monthlyRecords.isNotEmpty) {
-            monthlyAtt = monthlyRecords.map((r) => r.attendancePercentage).reduce((a, b) => a + b) / monthlyRecords.length;
-          }
+          // Monthly: strictly 1st day 00:00:00 to last day 23:59:59
+          monthlyAtt = AttendanceCalculator.calculateMonthlyAttendance(
+            attendanceRecords,
+            targetDate: now,
+          );
         }
 
         // --- 3. Calculate Fees ---
@@ -172,8 +177,8 @@ class DashboardService {
             isDistrictLagging = true;
           }
 
-          if (exam.scheduledDate.isAfter(startOfWeek) &&
-              exam.scheduledDate.isBefore(endOfWeek) &&
+          if ((exam.scheduledDate.isAfter(weekRange.start) || exam.scheduledDate.isAtSameMomentAs(weekRange.start)) &&
+              (exam.scheduledDate.isBefore(weekRange.end) || exam.scheduledDate.isAtSameMomentAs(weekRange.end)) &&
               exam.status != 'cancelled') {
             districtWeeklyExamsCount++;
           }
