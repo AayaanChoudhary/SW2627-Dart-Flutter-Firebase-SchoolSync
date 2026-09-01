@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/user_model.dart';
 import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
+import '../services/user_service.dart';
 import '../utils/app_colors.dart';
 import '../widgets/dashboard_action_center.dart';
 import '../widgets/dashboard_bottom_nav.dart';
@@ -34,8 +36,9 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  static const _districtId = 'DIST001';
   final DashboardService _dashboardService = DashboardService();
+  final UserService _userService = UserService();
+  UserModel? _userProfile;
   late Future<DistrictDashboardSummary> _dashboardFuture;
   late final Timer _refreshTimer;
   int _currentIndex = 0;
@@ -49,10 +52,27 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _dashboardFuture = _dashboardService.getDistrictSummary(_districtId);
+    _initDashboard();
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) _reload();
     });
+  }
+
+  Future<void> _initDashboard() async {
+    final user = FirebaseAuth.instance.currentUser;
+    final uid = user?.uid ?? 'guest';
+    final profile = await _userService.getUserProfile(
+      uid,
+      defaultEmail: user?.email,
+      defaultName: user?.displayName,
+      defaultDistrictId: 'DIST001',
+    );
+    if (mounted) {
+      setState(() {
+        _userProfile = profile;
+        _dashboardFuture = _dashboardService.getDistrictSummary(profile.districtId);
+      });
+    }
   }
 
   @override
@@ -63,8 +83,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _reload() {
+    final districtId = _userProfile?.districtId ?? 'DIST001';
     setState(() {
-      _dashboardFuture = _dashboardService.getDistrictSummary(_districtId);
+      _dashboardFuture = _dashboardService.getDistrictSummary(districtId);
     });
   }
 
