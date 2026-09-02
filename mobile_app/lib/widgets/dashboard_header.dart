@@ -5,12 +5,14 @@ class DashboardHeader extends StatelessWidget {
   final String userName;
   final String? districtId;
   final VoidCallback? onLogout;
+  final VoidCallback? onProfileTap;
 
   const DashboardHeader({
     super.key,
     required this.userName,
     this.districtId,
     this.onLogout,
+    this.onProfileTap,
   });
 
   @override
@@ -103,28 +105,34 @@ class DashboardHeader extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: AppColors.yellow,
-                border: Border.all(color: AppColors.card, width: 2),
-                boxShadow: const [
-                  BoxShadow(
-                    color: Color(0x33000000),
-                    offset: Offset(0, 2),
-                    blurRadius: 4,
+            GestureDetector(
+              onTap: onProfileTap,
+              child: Tooltip(
+                message: 'View Profile',
+                child: Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.yellow,
+                    border: Border.all(color: AppColors.card, width: 2),
+                    boxShadow: const [
+                      BoxShadow(
+                        color: Color(0x33000000),
+                        offset: Offset(0, 2),
+                        blurRadius: 4,
+                      ),
+                    ],
                   ),
-                ],
-              ),
-              child: Center(
-                child: Text(
-                  initials == 'PR' ? 'PN' : initials,
-                  style: const TextStyle(
-                    color: AppColors.text,
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
+                  child: Center(
+                    child: Text(
+                      initials == 'PR' ? 'PN' : initials,
+                      style: const TextStyle(
+                        color: AppColors.text,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
                 ),
               ),
