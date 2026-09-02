@@ -18,6 +18,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   final TextEditingController _fullNameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _districtIdController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
 
@@ -29,6 +30,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
   void dispose() {
     _fullNameController.dispose();
     _emailController.dispose();
+    _districtIdController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
@@ -40,12 +42,14 @@ class _SignUpScreenState extends State<SignUpScreen> {
     final signupData = SignupModel(
       name: _fullNameController.text.trim(),
       email: _emailController.text.trim(),
+      districtId: _districtIdController.text.trim().toUpperCase(),
       password: _passwordController.text,
       confirmPassword: _confirmPasswordController.text,
     );
 
-    if (!signupData.passwordsMatch) {
-      _showMessage('Passwords do not match.', isError: true);
+    final validationError = signupData.validate();
+    if (validationError != null) {
+      _showMessage(validationError, isError: true);
       return;
     }
 
@@ -179,6 +183,30 @@ class _SignUpScreenState extends State<SignUpScreen> {
                               final emailRegex = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
                               if (!emailRegex.hasMatch(value.trim())) {
                                 return 'Please enter a valid email address.';
+                              }
+                              return null;
+                            },
+                          ),
+
+                          const SizedBox(height: 20),
+
+                          // ── District ID Field ──────────────────────────
+                          _buildLabel('DISTRICT ID'),
+                          const SizedBox(height: 4),
+                          TextFormField(
+                            controller: _districtIdController,
+                            textCapitalization: TextCapitalization.characters,
+                            textInputAction: TextInputAction.next,
+                            style: const TextStyle(color: AppColors.text, fontSize: 15),
+                            decoration: _inputDecoration(
+                              hint: 'e.g. DIST001, DIST002',
+                            ),
+                            validator: (value) {
+                              if (value == null || value.trim().isEmpty) {
+                                return 'Please enter your District ID.';
+                              }
+                              if (value.trim().length < 2) {
+                                return 'District ID must be at least 2 characters.';
                               }
                               return null;
                             },

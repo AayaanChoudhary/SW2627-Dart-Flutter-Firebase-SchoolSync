@@ -22,8 +22,7 @@ class AuthService {
         await user.reload();
 
         // Create user profile document in Firestore users/{uid}
-        final districtId =
-            signupData.district.trim().isNotEmpty ? signupData.district.trim() : 'DIST001';
+        final districtId = signupData.districtId.trim();
 
         await UserService().saveUserProfile(
           UserModel(

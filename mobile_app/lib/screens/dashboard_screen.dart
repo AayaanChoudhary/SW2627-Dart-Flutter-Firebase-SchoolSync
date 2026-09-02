@@ -52,27 +52,34 @@ class _DashboardScreenState extends State<DashboardScreen> {
   @override
   void initState() {
     super.initState();
-    _initDashboard();
+    _dashboardFuture = _fetchDashboardData();
     _refreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
       if (mounted) _reload();
     });
   }
 
-  Future<void> _initDashboard() async {
+  Future<DistrictDashboardSummary> _fetchDashboardData() async {
     final user = FirebaseAuth.instance.currentUser;
-    final uid = user?.uid ?? 'guest';
-    final profile = await _userService.getUserProfile(
-      uid,
-      defaultEmail: user?.email,
-      defaultName: user?.displayName,
-      defaultDistrictId: 'DIST001',
-    );
-    if (mounted) {
-      setState(() {
-        _userProfile = profile;
-        _dashboardFuture = _dashboardService.getDistrictSummary(profile.districtId);
-      });
+    if (user == null) {
+      throw Exception('User is not logged in. Please sign in to access the district dashboard.');
     }
+
+    final profile = await _userService.getUserProfile(
+      user.uid,
+      defaultEmail: user.email,
+      defaultName: user.displayName,
+    );
+
+    _userProfile = profile;
+
+    final districtId = profile.districtId.trim();
+    if (districtId.isEmpty) {
+      throw Exception(
+        'No District ID associated with your account. Please log in with a registered district administrator account.',
+      );
+    }
+
+    return await _dashboardService.getDistrictSummary(districtId);
   }
 
   @override
@@ -83,9 +90,12 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   void _reload() {
-    final districtId = _userProfile?.districtId ?? 'DIST001';
     setState(() {
-      _dashboardFuture = _dashboardService.getDistrictSummary(districtId);
+      if (_userProfile != null && _userProfile!.districtId.trim().isNotEmpty) {
+        _dashboardFuture = _dashboardService.getDistrictSummary(_userProfile!.districtId.trim());
+      } else {
+        _dashboardFuture = _fetchDashboardData();
+      }
     });
   }
 
@@ -286,6 +296,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
           children: [
             DashboardHeader(
               userName: userName,
+              districtId: _userProfile?.districtId,
               onLogout: _handleLogout,
             ),
 

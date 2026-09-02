@@ -6,8 +6,6 @@ class UserService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   /// Fetches the user profile from Cloud Firestore `users/{uid}`.
-  /// If the profile document doesn't exist yet, it automatically creates a fallback
-  /// `district_admin` profile with `districtId = 'DIST001'` to maintain smooth migration.
   Future<UserModel> getUserProfile(
     String uid, {
     String? defaultEmail,
@@ -21,27 +19,24 @@ class UserService {
         return UserModel.fromFirestore(docSnap);
       }
 
-      // Create fallback profile document if missing
-      final fallbackProfile = UserModel(
-        uid: uid,
-        email: defaultEmail ?? '',
-        name: defaultName ?? 'District Admin',
-        role: 'district_admin',
-        districtId: defaultDistrictId ?? 'DIST001',
-      );
+      if (defaultDistrictId != null && defaultDistrictId.isNotEmpty) {
+        final profile = UserModel(
+          uid: uid,
+          email: defaultEmail ?? '',
+          name: defaultName ?? 'District Admin',
+          role: 'district_admin',
+          districtId: defaultDistrictId,
+        );
+        await saveUserProfile(profile);
+        return profile;
+      }
 
-      await saveUserProfile(fallbackProfile);
-      return fallbackProfile;
+      throw Exception(
+        'User profile not found for uid "$uid". Please ensure you have signed up with a valid District ID.',
+      );
     } catch (e) {
       debugPrint('⚠️ [UserService] Error fetching user profile for $uid: $e');
-      // Return safe in-memory fallback if network/permissions prevent fetch
-      return UserModel(
-        uid: uid,
-        email: defaultEmail ?? '',
-        name: defaultName ?? 'District Admin',
-        role: 'district_admin',
-        districtId: defaultDistrictId ?? 'DIST001',
-      );
+      rethrow;
     }
   }
 

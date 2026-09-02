@@ -3,11 +3,13 @@ import '../utils/app_colors.dart';
 
 class DashboardHeader extends StatelessWidget {
   final String userName;
+  final String? districtId;
   final VoidCallback? onLogout;
 
   const DashboardHeader({
     super.key,
     required this.userName,
+    this.districtId,
     this.onLogout,
   });
 
@@ -24,9 +26,11 @@ class DashboardHeader extends StatelessWidget {
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Text(
-              'DISTRICT ADMINISTRATOR',
-              style: TextStyle(
+            Text(
+              districtId != null && districtId!.isNotEmpty
+                  ? 'DISTRICT ADMINISTRATOR · ${districtId!.toUpperCase()}'
+                  : 'DISTRICT ADMINISTRATOR',
+              style: const TextStyle(
                 color: Color(0xFFC7BDB3),
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
