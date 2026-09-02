@@ -6,8 +6,9 @@ import '../models/fee_period_model.dart';
 import '../models/exam_model.dart';
 import '../models/feedback_model.dart';
 import '../utils/attendance_calculator.dart';
+import '../utils/business_rules.dart';
 
-/// Aggregated dashboard data for a single school.
+/// Aggregated dashboard data for a single school, evaluated with business rules.
 class SchoolDashboardData {
   final SchoolModel school;
   final double latestAttendancePercentage;
@@ -16,8 +17,15 @@ class SchoolDashboardData {
   final double feeSubmissionRate;
   final double feesCollected;
   final double feesPending;
-  final String examStatus; // 'On track' or 'Lagging'
+  final String examStatus; // 'On track', 'Approaching', or 'Lagging'
   final String feedbackStatus; // 'good' or 'needs_review'
+  final KPIStatus attendanceStatus;
+  final KPIStatus feeStatus;
+  final KPIStatus examKPIStatus;
+  final KPIStatus overallStatus;
+  final List<OperationalAlert> alerts;
+  final int overdueExamsCount;
+  final int approachingExamsCount;
 
   SchoolDashboardData({
     required this.school,
@@ -29,10 +37,39 @@ class SchoolDashboardData {
     required this.feesPending,
     required this.examStatus,
     required this.feedbackStatus,
-  });
+    KPIStatus? attendanceStatus,
+    KPIStatus? feeStatus,
+    KPIStatus? examKPIStatus,
+    KPIStatus? overallStatus,
+    this.alerts = const [],
+    this.overdueExamsCount = 0,
+    this.approachingExamsCount = 0,
+  })  : attendanceStatus = attendanceStatus ??
+            ThresholdRules.evaluateAttendance(latestAttendancePercentage),
+        feeStatus =
+            feeStatus ?? ThresholdRules.evaluateFees(feeSubmissionRate),
+        examKPIStatus = examKPIStatus ??
+            (examStatus.toLowerCase() == 'lagging'
+                ? KPIStatus.critical
+                : (examStatus.toLowerCase().contains('approach')
+                    ? KPIStatus.warning
+                    : KPIStatus.healthy)),
+        overallStatus = overallStatus ??
+            ThresholdRules.evaluateSchoolStatus(
+              attendanceStatus: attendanceStatus ??
+                  ThresholdRules.evaluateAttendance(latestAttendancePercentage),
+              feeStatus: feeStatus ??
+                  ThresholdRules.evaluateFees(feeSubmissionRate),
+              examStatus: examKPIStatus ??
+                  (examStatus.toLowerCase() == 'lagging'
+                      ? KPIStatus.critical
+                      : (examStatus.toLowerCase().contains('approach')
+                          ? KPIStatus.warning
+                          : KPIStatus.healthy)),
+            );
 }
 
-/// Consolidated district overview metrics.
+/// Consolidated district overview metrics with operational status summary.
 class DistrictDashboardSummary {
   final String districtId;
   final double averageAttendanceToday;
@@ -41,6 +78,10 @@ class DistrictDashboardSummary {
   final int weeklyExamsCount;
   final String examProgressStatus; // 'On track' or 'Lagging'
   final List<SchoolDashboardData> schoolsData;
+  final KPIStatus districtAttendanceStatus;
+  final KPIStatus districtFeeStatus;
+  final KPIStatus districtExamStatus;
+  final KPIStatus districtOverallStatus;
 
   DistrictDashboardSummary({
     this.districtId = '',
@@ -50,13 +91,35 @@ class DistrictDashboardSummary {
     required this.weeklyExamsCount,
     required this.examProgressStatus,
     required this.schoolsData,
-  });
+    KPIStatus? districtAttendanceStatus,
+    KPIStatus? districtFeeStatus,
+    KPIStatus? districtExamStatus,
+    KPIStatus? districtOverallStatus,
+  })  : districtAttendanceStatus = districtAttendanceStatus ??
+            ThresholdRules.evaluateAttendance(averageAttendanceToday),
+        districtFeeStatus = districtFeeStatus ??
+            ((totalFeesCollected + totalFeesPending) > 0
+                ? ThresholdRules.evaluateFees(
+                    (totalFeesCollected / (totalFeesCollected + totalFeesPending)) * 100.0)
+                : KPIStatus.healthy),
+        districtExamStatus = districtExamStatus ??
+            (examProgressStatus.toLowerCase() == 'lagging'
+                ? KPIStatus.critical
+                : KPIStatus.healthy),
+        districtOverallStatus = districtOverallStatus ??
+            (schoolsData.any((s) => s.overallStatus == KPIStatus.critical)
+                ? KPIStatus.critical
+                : (schoolsData.any((s) => s.overallStatus == KPIStatus.warning)
+                    ? KPIStatus.warning
+                    : KPIStatus.healthy));
 }
 
 class DashboardService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
-  /// Fetches the consolidated summary for all schools in a district strictly from Cloud Firestore.
+  /// Fetches the consolidated summary for all schools in a district strictly from Cloud Firestore,
+  /// executing the pipeline:
+  /// School -> Calculate KPIs -> Compare against Thresholds -> Generate Status & Alerts
   Future<DistrictDashboardSummary> getDistrictSummary(
     String districtId, {
     DateTime? targetDate,
@@ -161,7 +224,7 @@ class DashboardService {
         districtFeesCollected += collected;
         districtFeesPending += pending;
 
-        // --- 4. Calculate Exams Status ---
+        // --- 4. Calculate Exams Status with Business Rules ---
         final examsSnap = await _db
             .collection('schools')
             .doc(schoolId)
@@ -171,20 +234,24 @@ class DashboardService {
         final List<ExamModel> exams =
             examsSnap.docs.map((d) => ExamModel.fromFirestore(d)).toList();
 
-        String schoolExamStatus = 'On track';
-        for (final exam in exams) {
-          final isOverdue = exam.status == 'scheduled' && exam.scheduledDate.isBefore(now);
-          if (isOverdue) {
-            schoolExamStatus = 'Lagging';
-            isDistrictLagging = true;
-          }
+        final examEval = ThresholdRules.evaluateExams(exams, targetDate: now);
+        if (examEval.status == KPIStatus.critical) {
+          isDistrictLagging = true;
+        }
 
-          if ((exam.scheduledDate.isAfter(weekRange.start) || exam.scheduledDate.isAtSameMomentAs(weekRange.start)) &&
-              (exam.scheduledDate.isBefore(weekRange.end) || exam.scheduledDate.isAtSameMomentAs(weekRange.end)) &&
+        for (final exam in exams) {
+          if ((exam.scheduledDate.isAfter(weekRange.start) ||
+                  exam.scheduledDate.isAtSameMomentAs(weekRange.start)) &&
+              (exam.scheduledDate.isBefore(weekRange.end) ||
+                  exam.scheduledDate.isAtSameMomentAs(weekRange.end)) &&
               exam.status != 'cancelled') {
             districtWeeklyExamsCount++;
           }
         }
+
+        final schoolExamStatus = examEval.status == KPIStatus.critical
+            ? 'Lagging'
+            : (examEval.status == KPIStatus.warning ? 'Approaching' : 'On track');
 
         // --- 5. Fetch Feedback Status ---
         final feedbackSnap = await _db
@@ -201,6 +268,23 @@ class DashboardService {
           feedbackStatus = feedback.symbol;
         }
 
+        // --- 6. Pipeline: Evaluate KPIs against Thresholds -> Generate Status & Alerts ---
+        final attStatus = ThresholdRules.evaluateAttendance(latestAtt);
+        final feeStatus = ThresholdRules.evaluateFees(rate);
+        final schoolOverallStatus = ThresholdRules.evaluateSchoolStatus(
+          attendanceStatus: attStatus,
+          feeStatus: feeStatus,
+          examStatus: examEval.status,
+        );
+        final schoolAlerts = ThresholdRules.generateSchoolAlerts(
+          attendancePercentage: latestAtt,
+          feeSubmissionRate: rate,
+          feesPending: pending,
+          examStatus: examEval.status,
+          overdueExamsCount: examEval.overdueCount,
+          approachingExamsCount: examEval.approachingCount,
+        );
+
         schoolsData.add(
           SchoolDashboardData(
             school: school,
@@ -212,6 +296,13 @@ class DashboardService {
             feesPending: pending,
             examStatus: schoolExamStatus,
             feedbackStatus: feedbackStatus,
+            attendanceStatus: attStatus,
+            feeStatus: feeStatus,
+            examKPIStatus: examEval.status,
+            overallStatus: schoolOverallStatus,
+            alerts: schoolAlerts,
+            overdueExamsCount: examEval.overdueCount,
+            approachingExamsCount: examEval.approachingCount,
           ),
         );
       }
@@ -236,3 +327,4 @@ class DashboardService {
     }
   }
 }
+

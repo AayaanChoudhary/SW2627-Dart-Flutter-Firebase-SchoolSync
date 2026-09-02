@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/dashboard_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/business_rules.dart';
 import '../../widgets/district_summary_banner.dart';
 import '../../widgets/filter_chip_row.dart';
 import '../../widgets/school_search_bar.dart';
@@ -49,17 +50,18 @@ class _FeesListScreenState extends State<FeesListScreen> {
         if (!matchesName && !matchesId) return false;
       }
 
-      // 2. Fee rate filter
+      // 2. Fee rate filter using business rules
       final rate = s.feeSubmissionRate;
+      final status = ThresholdRules.evaluateFees(rate);
       switch (_rateFilter) {
         case FeesRateFilter.all:
           return true;
         case FeesRateFilter.low:
-          return rate < 50.0;
+          return status == KPIStatus.critical;
         case FeesRateFilter.moderate:
-          return rate >= 50.0 && rate < 80.0;
+          return status == KPIStatus.warning;
         case FeesRateFilter.high:
-          return rate >= 80.0;
+          return status == KPIStatus.healthy;
       }
     }).toList();
 
@@ -100,10 +102,13 @@ class _FeesListScreenState extends State<FeesListScreen> {
     final districtRate = totalDue > 0 ? (totalCollected / totalDue) * 100.0 : 0.0;
 
     int lowCount = 0;
+    int warningCount = 0;
     int highCount = 0;
     for (final s in schools) {
-      if (s.feeSubmissionRate < 50.0) lowCount++;
-      if (s.feeSubmissionRate >= 80.0) highCount++;
+      final status = ThresholdRules.evaluateFees(s.feeSubmissionRate);
+      if (status == KPIStatus.critical) lowCount++;
+      if (status == KPIStatus.warning) warningCount++;
+      if (status == KPIStatus.healthy) highCount++;
     }
 
     return RefreshIndicator(
@@ -186,19 +191,20 @@ class _FeesListScreenState extends State<FeesListScreen> {
                 ),
                 FilterChipItem(
                   value: FeesRateFilter.high,
-                  label: 'High (≥80%)',
+                  label: 'Healthy (≥90%)',
                   icon: Icons.trending_up_rounded,
                   count: highCount,
                 ),
                 FilterChipItem(
                   value: FeesRateFilter.moderate,
-                  label: 'Moderate (50-79%)',
-                  count: schools.length - highCount - lowCount,
+                  label: 'Warning (75-89.9%)',
+                  icon: Icons.warning_amber_rounded,
+                  count: warningCount,
                 ),
                 FilterChipItem(
                   value: FeesRateFilter.low,
-                  label: 'Low (<50%)',
-                  icon: Icons.warning_amber_rounded,
+                  label: 'Critical (<75%)',
+                  icon: Icons.error_outline_rounded,
                   count: lowCount,
                 ),
               ],
@@ -398,18 +404,11 @@ class _FeesSchoolCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final school = schoolData.school;
     final rate = schoolData.feeSubmissionRate;
-    final isHigh = rate >= 80.0;
-    final isLow = rate < 50.0;
+    final status = ThresholdRules.evaluateFees(rate);
 
-    final statusColor = isLow
-        ? const Color(0xFFC98591)
-        : (isHigh ? const Color(0xFF4A6741) : const Color(0xFFCBB158));
-    final statusBg = isLow
-        ? const Color(0xFFFAEAED)
-        : (isHigh ? const Color(0xFFE8F0E5) : const Color(0xFFFFF9E6));
-    final statusText = isLow
-        ? 'LOW RECOVERY'
-        : (isHigh ? 'HEALTHY' : 'MODERATE');
+    final statusColor = status.color;
+    final statusBg = status.backgroundColor;
+    final statusText = status.label.toUpperCase();
 
     return GestureDetector(
       onTap: onTap,
