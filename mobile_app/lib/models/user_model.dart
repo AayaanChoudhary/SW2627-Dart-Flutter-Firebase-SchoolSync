@@ -25,7 +25,7 @@ class UserModel {
       email: data['email'] as String? ?? '',
       name: data['name'] as String? ?? '',
       role: data['role'] as String? ?? 'district_admin',
-      districtId: data['districtId'] as String? ?? 'DIST001',
+      districtId: data['districtId'] as String? ?? '',
       schoolId: data['schoolId'] as String?,
     );
   }
@@ -36,7 +36,7 @@ class UserModel {
       email: map['email'] as String? ?? '',
       name: map['name'] as String? ?? '',
       role: map['role'] as String? ?? 'district_admin',
-      districtId: map['districtId'] as String? ?? 'DIST001',
+      districtId: map['districtId'] as String? ?? '',
       schoolId: map['schoolId'] as String?,
     );
   }

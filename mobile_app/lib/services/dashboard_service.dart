@@ -34,6 +34,7 @@ class SchoolDashboardData {
 
 /// Consolidated district overview metrics.
 class DistrictDashboardSummary {
+  final String districtId;
   final double averageAttendanceToday;
   final double totalFeesCollected;
   final double totalFeesPending;
@@ -42,6 +43,7 @@ class DistrictDashboardSummary {
   final List<SchoolDashboardData> schoolsData;
 
   DistrictDashboardSummary({
+    this.districtId = '',
     required this.averageAttendanceToday,
     required this.totalFeesCollected,
     required this.totalFeesPending,
@@ -218,8 +220,9 @@ class DashboardService {
           ? attendanceSum / schoolsWithAttendanceCount
           : 0.0;
 
-      debugPrint('📊 [DashboardService] Successfully fetched ${schoolsData.length} schools live from Cloud Firestore!');
+      debugPrint('📊 [DashboardService] Successfully fetched ${schoolsData.length} schools live from Cloud Firestore for district "$districtId"!');
       return DistrictDashboardSummary(
+        districtId: districtId,
         averageAttendanceToday: avgAttendanceToday,
         totalFeesCollected: districtFeesCollected,
         totalFeesPending: districtFeesPending,
