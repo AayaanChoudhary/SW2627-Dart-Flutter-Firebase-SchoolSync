@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../services/auth_service.dart';
 import '../services/dashboard_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/business_rules.dart';
 import '../widgets/dashboard_action_center.dart';
 import '../widgets/dashboard_bottom_nav.dart';
 import '../widgets/dashboard_header.dart';
@@ -90,22 +91,21 @@ class _DashboardScreenState extends State<DashboardScreen> {
         if (!matchesName && !matchesId) return false;
       }
 
-      final isCriticalAtt = s.latestAttendancePercentage < 70.0;
-      final isLaggingExam = s.examStatus.toLowerCase() == 'lagging';
-      final isLowFee = s.feeSubmissionRate < 50.0 && s.feesPending > 0;
-      final needsAttention = isCriticalAtt || isLaggingExam || isLowFee;
+      final isCriticalAtt = s.attendanceStatus == KPIStatus.critical;
+      final isLaggingExam = s.examKPIStatus != KPIStatus.healthy;
+      final isNeedsAttention = s.overallStatus != KPIStatus.healthy;
 
       switch (_triageFilter) {
         case DashboardTriageFilter.all:
           return true;
         case DashboardTriageFilter.needsAttention:
-          return needsAttention;
+          return isNeedsAttention;
         case DashboardTriageFilter.criticalAttendance:
           return isCriticalAtt;
         case DashboardTriageFilter.laggingExams:
           return isLaggingExam;
         case DashboardTriageFilter.onTrack:
-          return !needsAttention;
+          return !isNeedsAttention;
       }
     }).toList();
 
@@ -113,14 +113,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     filtered.sort((a, b) {
       switch (_sortOption) {
         case DashboardSortOption.needsAttentionFirst:
-          final aNeeds = a.latestAttendancePercentage < 70.0 ||
-              a.examStatus.toLowerCase() == 'lagging' ||
-              (a.feeSubmissionRate < 50.0 && a.feesPending > 0);
-          final bNeeds = b.latestAttendancePercentage < 70.0 ||
-              b.examStatus.toLowerCase() == 'lagging' ||
-              (b.feeSubmissionRate < 50.0 && b.feesPending > 0);
-          if (aNeeds && !bNeeds) return -1;
-          if (!aNeeds && bNeeds) return 1;
+          final aSev = a.overallStatus.severity;
+          final bSev = b.overallStatus.severity;
+          if (aSev != bSev) return bSev.compareTo(aSev); // Highest severity (Critical=2, Warning=1) first
           return a.latestAttendancePercentage.compareTo(b.latestAttendancePercentage);
         case DashboardSortOption.lowestAttendance:
           return a.latestAttendancePercentage.compareTo(b.latestAttendancePercentage);
@@ -244,13 +239,9 @@ class _DashboardScreenState extends State<DashboardScreen> {
     final schools = summary.schoolsData;
     final filteredSchools = _getFilteredBoardSchools(schools);
 
-    final criticalAttendanceCount = schools.where((s) => s.latestAttendancePercentage < 70.0).length;
-    final laggingExamsCount = schools.where((s) => s.examStatus.toLowerCase() == 'lagging').length;
-    final needsAttentionCount = schools.where((s) {
-      return s.latestAttendancePercentage < 70.0 ||
-          s.examStatus.toLowerCase() == 'lagging' ||
-          (s.feeSubmissionRate < 50.0 && s.feesPending > 0);
-    }).length;
+    final criticalAttendanceCount = schools.where((s) => s.attendanceStatus == KPIStatus.critical).length;
+    final laggingExamsCount = schools.where((s) => s.examKPIStatus != KPIStatus.healthy).length;
+    final needsAttentionCount = schools.where((s) => s.overallStatus != KPIStatus.healthy).length;
 
     return RefreshIndicator(
       onRefresh: () async {
@@ -331,17 +322,17 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 FilterChipItem(
                   value: DashboardTriageFilter.criticalAttendance,
-                  label: '🚨 Low Att (<70%)',
+                  label: '🚨 Critical Att (<75%)',
                   count: criticalAttendanceCount,
                 ),
                 FilterChipItem(
                   value: DashboardTriageFilter.laggingExams,
-                  label: '⏳ Lagging Exams',
+                  label: '⏳ Due Exams',
                   count: laggingExamsCount,
                 ),
                 FilterChipItem(
                   value: DashboardTriageFilter.onTrack,
-                  label: '✅ On Track',
+                  label: '✅ Healthy',
                   count: schools.length - needsAttentionCount,
                 ),
               ],

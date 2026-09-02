@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../screens/school_detail_screen.dart';
 import '../services/dashboard_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/business_rules.dart';
 
 class SchoolCard extends StatelessWidget {
   final SchoolDashboardData schoolData;
@@ -16,14 +17,12 @@ class SchoolCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final school = schoolData.school;
-    final isOnTrack = schoolData.examStatus.toLowerCase() == 'on track';
-    final isCriticalAtt = schoolData.latestAttendancePercentage < 70.0;
-    final isGoodAtt = schoolData.latestAttendancePercentage >= 85.0;
-    final needsAttention = isCriticalAtt || !isOnTrack || (schoolData.feeSubmissionRate < 50.0 && schoolData.feesPending > 0);
+    final overall = schoolData.overallStatus;
+    final isCritical = overall == KPIStatus.critical;
+    final isWarning = overall == KPIStatus.warning;
+    final isHealthy = overall == KPIStatus.healthy;
 
-    final attColor = isCriticalAtt
-        ? const Color(0xFFC98591)
-        : (isGoodAtt ? const Color(0xFF4A6741) : const Color(0xFFCBB158));
+    final attStatus = schoolData.attendanceStatus;
 
     return GestureDetector(
       onTap: () {
@@ -40,8 +39,10 @@ class SchoolCard extends StatelessWidget {
           color: AppColors.card,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: needsAttention ? const Color(0xFFE0BAC0) : const Color(0xFFE2DCCE),
-            width: needsAttention ? 1.5 : 1.0,
+            color: isCritical
+                ? const Color(0xFFE0BAC0)
+                : (isWarning ? const Color(0xFFF0E0B0) : const Color(0xFFE2DCCE)),
+            width: !isHealthy ? 1.5 : 1.0,
           ),
           boxShadow: const [
             BoxShadow(
@@ -74,14 +75,14 @@ class SchoolCard extends StatelessWidget {
                         ),
                       ),
                     ),
-                    if (needsAttention) ...[
+                    if (!isHealthy) ...[
                       const SizedBox(width: 4),
-                      const Tooltip(
-                        message: 'Requires Attention',
+                      Tooltip(
+                        message: isCritical ? 'Critical Issue Detected' : 'Operational Warning',
                         child: Icon(
-                          Icons.error_outline_rounded,
+                          overall.icon,
                           size: 16,
-                          color: Color(0xFFC98591),
+                          color: overall.color,
                         ),
                       ),
                     ],
@@ -110,20 +111,43 @@ class SchoolCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
                       decoration: BoxDecoration(
-                        color: isCriticalAtt
-                            ? const Color(0xFFFAEAED)
-                            : (isGoodAtt ? const Color(0xFFE8F0E5) : const Color(0xFFFFF9E6)),
+                        color: attStatus.backgroundColor,
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
                         'ATT ${schoolData.latestAttendancePercentage.toStringAsFixed(0)}%',
                         style: TextStyle(
-                          color: attColor,
+                          color: attStatus.color,
                           fontSize: 10,
                           fontWeight: FontWeight.w800,
                         ),
                       ),
                     ),
+                    if (schoolData.feeSubmissionRate > 0 || schoolData.feesPending > 0) ...[
+                      const Text(
+                        '  ·  ',
+                        style: TextStyle(
+                          color: AppColors.secondaryText,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+                        decoration: BoxDecoration(
+                          color: schoolData.feeStatus.backgroundColor,
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: Text(
+                          'FEE ${schoolData.feeSubmissionRate.toStringAsFixed(0)}%',
+                          style: TextStyle(
+                            color: schoolData.feeStatus.color,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ],
@@ -135,11 +159,13 @@ class SchoolCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: isOnTrack ? const Color(0xFF8FA57C) : const Color(0xFFC98591),
+                    color: overall.solidColor,
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    isOnTrack ? 'ON TRACK' : 'LAGGING',
+                    isHealthy
+                        ? 'HEALTHY'
+                        : (isWarning ? 'WARNING' : 'CRITICAL'),
                     style: const TextStyle(
                       color: Colors.white,
                       fontSize: 9,
@@ -149,9 +175,9 @@ class SchoolCard extends StatelessWidget {
                   ),
                 ),
                 Icon(
-                  isOnTrack ? Icons.check_circle_outline_rounded : Icons.warning_amber_rounded,
+                  overall.icon,
                   size: 18,
-                  color: isOnTrack ? const Color(0xFF5A7552) : const Color(0xFFB54C5D),
+                  color: overall.color,
                 ),
               ],
             ),
@@ -164,3 +190,4 @@ class SchoolCard extends StatelessWidget {
   String _formatNumber(int number) =>
       number.toString().replaceAllMapped(RegExp(r'(\d)(?=(\d{3})+$)'), (m) => '${m[1]},');
 }
+

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../services/dashboard_service.dart';
 import '../utils/app_colors.dart';
+import '../utils/business_rules.dart';
 
 enum DashboardTriageFilter {
   all,
@@ -11,7 +12,7 @@ enum DashboardTriageFilter {
 }
 
 /// Executive decision-making alert hub spotlighting operational risks and
-/// urgent administrative intervention points across district schools.
+/// urgent administrative intervention points across district schools based on KPI thresholds.
 class DashboardActionCenter extends StatelessWidget {
   final List<SchoolDashboardData> schools;
   final ValueChanged<DashboardTriageFilter>? onFilterSelected;
@@ -25,22 +26,39 @@ class DashboardActionCenter extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final criticalAttendanceSchools = schools
-        .where((s) => s.latestAttendancePercentage < 70.0)
+        .where((s) => s.attendanceStatus == KPIStatus.critical)
+        .toList();
+
+    final warningAttendanceSchools = schools
+        .where((s) => s.attendanceStatus == KPIStatus.warning)
         .toList();
 
     final laggingExamSchools = schools
-        .where((s) => s.examStatus.toLowerCase() == 'lagging')
+        .where((s) => s.examKPIStatus == KPIStatus.critical)
         .toList();
 
-    final lowFeeSchools = schools
-        .where((s) => s.feeSubmissionRate < 50.0 && s.feesPending > 0)
+    final approachingExamSchools = schools
+        .where((s) => s.examKPIStatus == KPIStatus.warning)
         .toList();
 
-    final totalIssues = criticalAttendanceSchools.length +
+    final criticalFeeSchools = schools
+        .where((s) => s.feeStatus == KPIStatus.critical && s.feesPending > 0)
+        .toList();
+
+    final warningFeeSchools = schools
+        .where((s) => s.feeStatus == KPIStatus.warning && s.feesPending > 0)
+        .toList();
+
+    final totalCriticalIssues = criticalAttendanceSchools.length +
         laggingExamSchools.length +
-        lowFeeSchools.length;
+        criticalFeeSchools.length;
 
-    final hasCriticalIssues = criticalAttendanceSchools.isNotEmpty || laggingExamSchools.isNotEmpty;
+    final totalWarningIssues = warningAttendanceSchools.length +
+        approachingExamSchools.length +
+        warningFeeSchools.length;
+
+    final totalIssues = totalCriticalIssues + totalWarningIssues;
+    final hasCriticalIssues = totalCriticalIssues > 0;
 
     return Container(
       width: double.infinity,
@@ -51,7 +69,9 @@ class DashboardActionCenter extends StatelessWidget {
         border: Border.all(
           color: hasCriticalIssues
               ? const Color(0xFFE0BAC0)
-              : const Color(0xFFE2DCCE),
+              : (totalWarningIssues > 0
+                  ? const Color(0xFFF0E0B0)
+                  : const Color(0xFFE2DCCE)),
           width: hasCriticalIssues ? 1.5 : 1.0,
         ),
         boxShadow: const [
@@ -108,7 +128,9 @@ class DashboardActionCenter extends StatelessWidget {
                 ),
                 child: Text(
                   totalIssues > 0
-                      ? '$totalIssues ${totalIssues == 1 ? 'ACTION REQUIRED' : 'ACTIONS REQUIRED'}'
+                      ? (hasCriticalIssues
+                          ? '$totalCriticalIssues CRITICAL · $totalWarningIssues WARNING'
+                          : '$totalWarningIssues WARNING ${totalWarningIssues == 1 ? 'ALERT' : 'ALERTS'}')
                       : 'OPERATIONS HEALTHY',
                   style: TextStyle(
                     color: totalIssues > 0
@@ -159,51 +181,85 @@ class DashboardActionCenter extends StatelessWidget {
             ),
           ] else ...[
             // ── Critical Attendance Alert ──────────────────────────────
-            if (criticalAttendanceSchools.isNotEmpty)
+            if (criticalAttendanceSchools.isNotEmpty) ...[
               _buildAlertCard(
                 icon: Icons.person_off_rounded,
                 iconColor: const Color(0xFFC98591),
                 bgColor: const Color(0xFFFAEAED),
                 borderColor: const Color(0xFFE0BAC0),
-                title: '${criticalAttendanceSchools.length} ${criticalAttendanceSchools.length == 1 ? 'School with Critical Attendance (<70%)' : 'Schools with Critical Attendance (<70%)'}',
+                title: '${criticalAttendanceSchools.length} ${criticalAttendanceSchools.length == 1 ? 'School with Critical Attendance (<75%)' : 'Schools with Critical Attendance (<75%)'}',
                 description: criticalAttendanceSchools
                     .map((s) => '${s.school.name} (${s.latestAttendancePercentage.toStringAsFixed(0)}%)')
                     .join(', '),
                 actionLabel: 'Filter Critical',
                 onAction: () => onFilterSelected?.call(DashboardTriageFilter.criticalAttendance),
               ),
+              const SizedBox(height: 8),
+            ],
 
-            // ── Exam Schedule Delay Alert ──────────────────────────────
+            // ── Exam Schedule Delay / Overdue Alert ────────────────────
             if (laggingExamSchools.isNotEmpty) ...[
-              if (criticalAttendanceSchools.isNotEmpty) const SizedBox(height: 8),
               _buildAlertCard(
                 icon: Icons.timer_outlined,
                 iconColor: const Color(0xFFB54C5D),
                 bgColor: const Color(0xFFFDEEF0),
                 borderColor: const Color(0xFFE0BAC0),
-                title: '${laggingExamSchools.length} ${laggingExamSchools.length == 1 ? 'School Lagging in Exam Timelines' : 'Schools Lagging in Exam Timelines'}',
+                title: '${laggingExamSchools.length} ${laggingExamSchools.length == 1 ? 'School with Overdue Exams (Critical)' : 'Schools with Overdue Exams (Critical)'}',
                 description: laggingExamSchools
                     .map((s) => s.school.name)
                     .join(', '),
                 actionLabel: 'Filter Lagging',
                 onAction: () => onFilterSelected?.call(DashboardTriageFilter.laggingExams),
               ),
+              const SizedBox(height: 8),
             ],
 
-            // ── Fee Collection Lag Alert ────────────────────────────────
-            if (lowFeeSchools.isNotEmpty) ...[
-              if (criticalAttendanceSchools.isNotEmpty || laggingExamSchools.isNotEmpty)
-                const SizedBox(height: 8),
+            // ── Critical Fee Collection Deficit Alert ──────────────────
+            if (criticalFeeSchools.isNotEmpty) ...[
               _buildAlertCard(
                 icon: Icons.account_balance_wallet_outlined,
-                iconColor: const Color(0xFFCBB158),
-                bgColor: const Color(0xFFFFF9E6),
-                borderColor: const Color(0xFFE8DCB0),
-                title: '${lowFeeSchools.length} ${lowFeeSchools.length == 1 ? 'School with Low Fee Collection (<50%)' : 'Schools with Low Fee Collection (<50%)'}',
-                description: lowFeeSchools
+                iconColor: const Color(0xFFC98591),
+                bgColor: const Color(0xFFFAEAED),
+                borderColor: const Color(0xFFE0BAC0),
+                title: '${criticalFeeSchools.length} ${criticalFeeSchools.length == 1 ? 'School with Critical Fee Deficit (<75%)' : 'Schools with Critical Fee Deficit (<75%)'}',
+                description: criticalFeeSchools
                     .map((s) => '${s.school.name} (${s.feeSubmissionRate.toStringAsFixed(0)}% collected)')
                     .join(', '),
                 actionLabel: 'Review Fees',
+                onAction: () => onFilterSelected?.call(DashboardTriageFilter.needsAttention),
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            // ── Approaching Exam Deadlines (Warning) ───────────────────
+            if (approachingExamSchools.isNotEmpty) ...[
+              _buildAlertCard(
+                icon: Icons.alarm_rounded,
+                iconColor: const Color(0xFFCBB158),
+                bgColor: const Color(0xFFFFF9E6),
+                borderColor: const Color(0xFFF0E0B0),
+                title: '${approachingExamSchools.length} ${approachingExamSchools.length == 1 ? 'School with Approaching Exam Deadlines (Warning)' : 'Schools with Approaching Exam Deadlines (Warning)'}',
+                description: approachingExamSchools
+                    .map((s) => s.school.name)
+                    .join(', '),
+                actionLabel: 'View Exams',
+                onAction: () => onFilterSelected?.call(DashboardTriageFilter.laggingExams),
+              ),
+              const SizedBox(height: 8),
+            ],
+
+            // ── Attendance Warning (75% - 84.9%) ────────────────────────
+            if (warningAttendanceSchools.isNotEmpty) ...[
+              _buildAlertCard(
+                icon: Icons.info_outline_rounded,
+                iconColor: const Color(0xFFCBB158),
+                bgColor: const Color(0xFFFFF9E6),
+                borderColor: const Color(0xFFF0E0B0),
+                title: '${warningAttendanceSchools.length} ${warningAttendanceSchools.length == 1 ? 'School in Attendance Warning Zone (75-84.9%)' : 'Schools in Attendance Warning Zone (75-84.9%)'}',
+                description: warningAttendanceSchools
+                    .map((s) => '${s.school.name} (${s.latestAttendancePercentage.toStringAsFixed(0)}%)')
+                    .join(', '),
+                actionLabel: 'Inspect',
                 onAction: () => onFilterSelected?.call(DashboardTriageFilter.needsAttention),
               ),
             ],
@@ -242,7 +298,7 @@ class DashboardActionCenter extends StatelessWidget {
               children: [
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: AppColors.text,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
@@ -286,3 +342,4 @@ class DashboardActionCenter extends StatelessWidget {
     );
   }
 }
+

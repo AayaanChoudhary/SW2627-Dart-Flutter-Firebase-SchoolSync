@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../services/dashboard_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/business_rules.dart';
 import '../../widgets/district_summary_banner.dart';
 import '../../widgets/filter_chip_row.dart';
 import '../../widgets/school_search_bar.dart';
@@ -63,17 +64,18 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
         if (!matchesName && !matchesId) return false;
       }
 
-      // 2. Attendance threshold filter
+      // 2. Attendance threshold filter using business rules
       final att = _getSchoolAttendance(s, _period);
+      final status = ThresholdRules.evaluateAttendance(att);
       switch (_thresholdFilter) {
         case AttendanceThresholdFilter.all:
           return true;
         case AttendanceThresholdFilter.critical:
-          return att < 70.0;
+          return status == KPIStatus.critical;
         case AttendanceThresholdFilter.moderate:
-          return att >= 70.0 && att < 85.0;
+          return status == KPIStatus.warning;
         case AttendanceThresholdFilter.good:
-          return att >= 85.0;
+          return status == KPIStatus.healthy;
       }
     }).toList();
 
@@ -105,6 +107,7 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
     // Calculate dynamic stats based on current period
     double periodAvg = 0.0;
     int criticalCount = 0;
+    int warningCount = 0;
     int goodCount = 0;
 
     if (schools.isNotEmpty) {
@@ -112,8 +115,10 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
       for (final s in schools) {
         final att = _getSchoolAttendance(s, _period);
         sum += att;
-        if (att < 70.0) criticalCount++;
-        if (att >= 85.0) goodCount++;
+        final status = ThresholdRules.evaluateAttendance(att);
+        if (status == KPIStatus.critical) criticalCount++;
+        if (status == KPIStatus.warning) warningCount++;
+        if (status == KPIStatus.healthy) goodCount++;
       }
       periodAvg = sum / schools.length;
     }
@@ -221,18 +226,19 @@ class _AttendanceListScreenState extends State<AttendanceListScreen> {
                 ),
                 FilterChipItem(
                   value: AttendanceThresholdFilter.critical,
-                  label: 'Critical (<70%)',
+                  label: 'Critical (<75%)',
                   icon: Icons.error_outline_rounded,
                   count: criticalCount,
                 ),
                 FilterChipItem(
                   value: AttendanceThresholdFilter.moderate,
-                  label: 'Moderate (70-84%)',
-                  count: schools.length - criticalCount - goodCount,
+                  label: 'Warning (75-84.9%)',
+                  icon: Icons.warning_amber_rounded,
+                  count: warningCount,
                 ),
                 FilterChipItem(
                   value: AttendanceThresholdFilter.good,
-                  label: 'Good (≥85%)',
+                  label: 'Healthy (≥85%)',
                   icon: Icons.check_circle_outline_rounded,
                   count: goodCount,
                 ),
@@ -465,18 +471,11 @@ class _AttendanceSchoolCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final school = schoolData.school;
-    final isGood = attendancePercentage >= 85.0;
-    final isCritical = attendancePercentage < 70.0;
+    final status = ThresholdRules.evaluateAttendance(attendancePercentage);
 
-    final statusColor = isCritical
-        ? const Color(0xFFC98591)
-        : (isGood ? const Color(0xFF4A6741) : const Color(0xFFCBB158));
-    final statusBg = isCritical
-        ? const Color(0xFFFAEAED)
-        : (isGood ? const Color(0xFFE8F0E5) : const Color(0xFFFFF9E6));
-    final statusText = isCritical
-        ? 'CRITICAL'
-        : (isGood ? 'ON TARGET' : 'MODERATE');
+    final statusColor = status.color;
+    final statusBg = status.backgroundColor;
+    final statusText = status.label.toUpperCase();
 
     return GestureDetector(
       onTap: onTap,

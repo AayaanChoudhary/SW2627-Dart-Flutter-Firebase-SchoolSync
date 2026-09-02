@@ -3,6 +3,7 @@ import '../../models/exam_model.dart';
 import '../../services/dashboard_service.dart';
 import '../../services/exam_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/business_rules.dart';
 import '../../widgets/firebase_error_view.dart';
 import '../../widgets/school_detail/section_header.dart';
 
@@ -68,8 +69,10 @@ class _ExamsTabState extends State<ExamsTab> {
         final cancelled =
             exams.where((e) => e.isCancelled).toList();
 
-        // Overall status pill
-        final isLagging = overdue.isNotEmpty;
+        final eval = ThresholdRules.evaluateExams(exams);
+        final status = eval.status;
+        final isLagging = status == KPIStatus.critical;
+        final isApproaching = status == KPIStatus.warning;
 
         return SingleChildScrollView(
           padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
@@ -82,38 +85,32 @@ class _ExamsTabState extends State<ExamsTab> {
                 padding: const EdgeInsets.symmetric(
                     vertical: 16, horizontal: 20),
                 decoration: BoxDecoration(
-                  color: isLagging
-                      ? const Color(0xFFFAEAED)
-                      : const Color(0xFFE8F0E5),
+                  color: status.backgroundColor,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                    color: isLagging
-                        ? const Color(0xFFE0BAC0)
-                        : const Color(0xFFB5CEAD),
+                    color: status.borderColor,
                   ),
                 ),
                 child: Row(
                   children: [
                     Icon(
-                      isLagging
-                          ? Icons.warning_amber_rounded
-                          : Icons.check_circle_outline_rounded,
-                      color: isLagging
-                          ? const Color(0xFFC98591)
-                          : const Color(0xFF4A6741),
+                      status.icon,
+                      color: status.color,
                       size: 22,
                     ),
                     const SizedBox(width: 10),
-                    Text(
-                      isLagging
-                          ? '${overdue.length} exam${overdue.length > 1 ? 's' : ''} overdue'
-                          : 'All exams on track',
-                      style: TextStyle(
-                        color: isLagging
-                            ? const Color(0xFFC98591)
-                            : const Color(0xFF4A6741),
-                        fontWeight: FontWeight.w700,
-                        fontSize: 14,
+                    Expanded(
+                      child: Text(
+                        isLagging
+                            ? '${overdue.length} exam${overdue.length > 1 ? 's' : ''} overdue (Action required)'
+                            : (isApproaching
+                                ? '${eval.approachingCount} exam${eval.approachingCount > 1 ? 's' : ''} approaching deadline within 3 days'
+                                : 'All exams on schedule'),
+                        style: TextStyle(
+                          color: status.color,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ],

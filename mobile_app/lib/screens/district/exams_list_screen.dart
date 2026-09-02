@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import '../../services/dashboard_service.dart';
 import '../../utils/app_colors.dart';
+import '../../utils/business_rules.dart';
 import '../../widgets/district_summary_banner.dart';
 import '../../widgets/filter_chip_row.dart';
 import '../../widgets/school_search_bar.dart';
 import '../school_detail_screen.dart';
 
-enum ExamStatusFilter { all, lagging, onTrack }
+enum ExamStatusFilter { all, lagging, approaching, onTrack }
 
 enum ExamSortOption { laggingFirst, onTrackFirst, name, students }
 
@@ -50,30 +51,29 @@ class _ExamsListScreenState extends State<ExamsListScreen> {
       }
 
       // 2. Status filter
-      final isLagging = s.examStatus.toLowerCase() == 'lagging';
       switch (_statusFilter) {
         case ExamStatusFilter.all:
           return true;
         case ExamStatusFilter.lagging:
-          return isLagging;
+          return s.examKPIStatus == KPIStatus.critical;
+        case ExamStatusFilter.approaching:
+          return s.examKPIStatus == KPIStatus.warning;
         case ExamStatusFilter.onTrack:
-          return !isLagging;
+          return s.examKPIStatus == KPIStatus.healthy;
       }
     }).toList();
 
     // 3. Sorting logic
     filtered.sort((a, b) {
-      final aLagging = a.examStatus.toLowerCase() == 'lagging';
-      final bLagging = b.examStatus.toLowerCase() == 'lagging';
+      final aSev = a.examKPIStatus.severity;
+      final bSev = b.examKPIStatus.severity;
 
       switch (_sortOption) {
         case ExamSortOption.laggingFirst:
-          if (aLagging && !bLagging) return -1;
-          if (!aLagging && bLagging) return 1;
+          if (aSev != bSev) return bSev.compareTo(aSev); // Highest risk first
           return a.school.name.compareTo(b.school.name);
         case ExamSortOption.onTrackFirst:
-          if (!aLagging && bLagging) return -1;
-          if (aLagging && !bLagging) return 1;
+          if (aSev != bSev) return aSev.compareTo(bSev); // Lowest risk first
           return a.school.name.compareTo(b.school.name);
         case ExamSortOption.name:
           return a.school.name.compareTo(b.school.name);
@@ -91,10 +91,13 @@ class _ExamsListScreenState extends State<ExamsListScreen> {
     final filteredSchools = _getFilteredSchools();
 
     int laggingCount = 0;
+    int approachingCount = 0;
     int onTrackCount = 0;
     for (final s in schools) {
-      if (s.examStatus.toLowerCase() == 'lagging') {
+      if (s.examKPIStatus == KPIStatus.critical) {
         laggingCount++;
+      } else if (s.examKPIStatus == KPIStatus.warning) {
+        approachingCount++;
       } else {
         onTrackCount++;
       }
@@ -183,13 +186,19 @@ class _ExamsListScreenState extends State<ExamsListScreen> {
                 ),
                 FilterChipItem(
                   value: ExamStatusFilter.lagging,
-                  label: 'Lagging',
-                  icon: Icons.warning_amber_rounded,
+                  label: 'Overdue (Critical)',
+                  icon: Icons.error_outline_rounded,
                   count: laggingCount,
                 ),
                 FilterChipItem(
+                  value: ExamStatusFilter.approaching,
+                  label: 'Approaching (Warning)',
+                  icon: Icons.warning_amber_rounded,
+                  count: approachingCount,
+                ),
+                FilterChipItem(
                   value: ExamStatusFilter.onTrack,
-                  label: 'On Track',
+                  label: 'On Schedule (Healthy)',
                   icon: Icons.check_circle_outline_rounded,
                   count: onTrackCount,
                 ),
@@ -380,11 +389,14 @@ class _ExamSchoolCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final school = schoolData.school;
-    final isLagging = schoolData.examStatus.toLowerCase() == 'lagging';
+    final status = schoolData.examKPIStatus;
 
-    final statusColor = isLagging ? const Color(0xFFC98591) : const Color(0xFF4A6741);
-    final statusBg = isLagging ? const Color(0xFFFAEAED) : const Color(0xFFE8F0E5);
-    final statusBorder = isLagging ? const Color(0xFFE0BAC0) : const Color(0xFFB5CEAD);
+    final statusColor = status.color;
+    final statusBg = status.backgroundColor;
+    final statusBorder = status.borderColor;
+    final statusLabel = status == KPIStatus.critical
+        ? 'OVERDUE'
+        : (status == KPIStatus.warning ? 'APPROACHING' : 'ON TRACK');
 
     return GestureDetector(
       onTap: onTap,
@@ -441,20 +453,20 @@ class _ExamSchoolCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: isLagging ? const Color(0xFFC98591) : const Color(0xFF8FA57C),
+                    color: status.solidColor,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(
-                        isLagging ? Icons.warning_amber_rounded : Icons.check_circle_outline_rounded,
+                        status.icon,
                         size: 13,
                         color: Colors.white,
                       ),
                       const SizedBox(width: 4),
                       Text(
-                        isLagging ? 'LAGGING' : 'ON TRACK',
+                        statusLabel,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 10,
@@ -481,16 +493,20 @@ class _ExamSchoolCard extends StatelessWidget {
               child: Row(
                 children: [
                   Icon(
-                    isLagging ? Icons.schedule_rounded : Icons.event_available_rounded,
+                    status == KPIStatus.critical
+                        ? Icons.schedule_rounded
+                        : (status == KPIStatus.warning ? Icons.alarm_rounded : Icons.event_available_rounded),
                     color: statusColor,
                     size: 18,
                   ),
                   const SizedBox(width: 8),
                   Expanded(
                     child: Text(
-                      isLagging
-                          ? 'Assessments overdue or behind target schedule'
-                          : 'All term assessments progressing on schedule',
+                      status == KPIStatus.critical
+                          ? 'Assessments overdue or past deadline (Action required)'
+                          : (status == KPIStatus.warning
+                              ? 'Assessments approaching deadline within 3 days'
+                              : 'All term assessments progressing on schedule'),
                       style: TextStyle(
                         color: statusColor,
                         fontSize: 12,
