@@ -188,79 +188,89 @@ class _DashboardScreenState extends State<DashboardScreen> {
         ? user!.displayName!
         : (user?.email?.split('@').first ?? 'Priya');
 
-    return Scaffold(
-      backgroundColor: AppColors.background,
-      body: SafeArea(
-        child: FutureBuilder<DistrictDashboardSummary>(
-          future: _dashboardFuture,
-          builder: (context, snapshot) {
-            if (snapshot.hasError) {
-              return FirebaseErrorView(
-                title: 'Unable to Load Dashboard Data',
-                message: snapshot.error.toString().replaceAll('Exception: ', ''),
-                onRetry: _reload,
-              );
-            }
+    return PopScope(
+      canPop: _currentIndex == 0,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        if (_currentIndex != 0) {
+          setState(() => _currentIndex = 0);
+        }
+      },
+      child: Scaffold(
+        backgroundColor: AppColors.background,
+        body: SafeArea(
+          child: FutureBuilder<DistrictDashboardSummary>(
+            future: _dashboardFuture,
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return FirebaseErrorView(
+                  title: 'Unable to Load Dashboard Data',
+                  message: snapshot.error.toString().replaceAll('Exception: ', ''),
+                  onRetry: _reload,
+                  onLogout: _handleLogout,
+                );
+              }
 
-            if (!snapshot.hasData) {
-              return const Center(
-                child: CircularProgressIndicator(color: AppColors.card),
-              );
-            }
+              if (!snapshot.hasData) {
+                return const Center(
+                  child: CircularProgressIndicator(color: AppColors.card),
+                );
+              }
 
-            final summary = snapshot.data!;
+              final summary = snapshot.data!;
 
-            return Stack(
-              children: [
-                // ── Active Tab Page via IndexedStack to retain scroll states ──
-                IndexedStack(
-                  index: _currentIndex,
-                  children: [
-                    // Tab 0: Board Overview
-                    _buildBoardTab(summary, userName),
+              return Stack(
+                children: [
+                  // ── Active Tab Page via IndexedStack to retain scroll states ──
+                  IndexedStack(
+                    index: _currentIndex,
+                    children: [
+                      // Tab 0: Board Overview
+                      _buildBoardTab(summary, userName),
 
-                    // Tab 1: Attendance List Screen
-                    AttendanceListScreen(
-                      summary: summary,
-                      onRefresh: () async {
-                        _reload();
-                        await _dashboardFuture;
-                      },
-                    ),
+                      // Tab 1: Attendance List Screen
+                      AttendanceListScreen(
+                        summary: summary,
+                        onRefresh: () async {
+                          _reload();
+                          await _dashboardFuture;
+                        },
+                      ),
 
-                    // Tab 2: Fees List Screen
-                    FeesListScreen(
-                      summary: summary,
-                      onRefresh: () async {
-                        _reload();
-                        await _dashboardFuture;
-                      },
-                    ),
+                      // Tab 2: Fees List Screen
+                      FeesListScreen(
+                        summary: summary,
+                        onRefresh: () async {
+                          _reload();
+                          await _dashboardFuture;
+                        },
+                      ),
 
-                    // Tab 3: Exams List Screen
-                    ExamsListScreen(
-                      summary: summary,
-                      onRefresh: () async {
-                        _reload();
-                        await _dashboardFuture;
-                      },
-                    ),
-                  ],
-                ),
-
-                // Floating Pill Bottom Navigation Bar Overlay
-                Positioned(
-                  left: 0,
-                  right: 0,
-                  bottom: 0,
-                  child: DashboardBottomNav(
-                    currentIndex: _currentIndex,
-                    onTap: (index) => setState(() => _currentIndex = index),
+                      // Tab 3: Exams List Screen
+                      ExamsListScreen(
+                        summary: summary,
+                        onRefresh: () async {
+                          _reload();
+                          await _dashboardFuture;
+                        },
+                      ),
+                    ],
                   ),
-                ),
-              ],
-            );
-          },
+
+                  // Floating Pill Bottom Navigation Bar Overlay
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    child: DashboardBottomNav(
+                      currentIndex: _currentIndex,
+                      onTap: (index) => setState(() => _currentIndex = index),
+                    ),
+                  ),
+                ],
+              );
+            },
+          ),
         ),
       ),
     );

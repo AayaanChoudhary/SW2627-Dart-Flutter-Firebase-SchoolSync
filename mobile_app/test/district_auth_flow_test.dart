@@ -3,7 +3,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_core_platform_interface/test.dart';
 import 'package:mobile_app/models/school_model.dart';
-import 'package:mobile_app/models/signup_model.dart';
 import 'package:mobile_app/models/user_model.dart';
 import 'package:mobile_app/screens/signup_screen.dart';
 import 'package:mobile_app/services/dashboard_service.dart';
