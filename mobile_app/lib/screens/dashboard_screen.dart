@@ -19,6 +19,7 @@ import 'district/attendance_list_screen.dart';
 import 'district/exams_list_screen.dart';
 import 'district/fees_list_screen.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 enum DashboardSortOption {
   needsAttentionFirst,
@@ -245,6 +246,13 @@ class _DashboardScreenState extends State<DashboardScreen> {
                         await _dashboardFuture;
                       },
                     ),
+
+                    // Tab 4: Account Profile Screen
+                    ProfileScreen(
+                      userProfile: _userProfile,
+                      onLogout: _handleLogout,
+                      onBack: () => setState(() => _currentIndex = 0),
+                    ),
                   ],
                 ),
 
@@ -289,6 +297,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
               userName: userName,
               districtId: _userProfile?.districtId,
               onLogout: _handleLogout,
+              onProfileTap: () => setState(() => _currentIndex = 4),
             ),
 
             const SizedBox(height: 20),
@@ -516,7 +525,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                   crossAxisCount: 2,
                   crossAxisSpacing: 14,
                   mainAxisSpacing: 16,
-                  childAspectRatio: 0.92,
+                  childAspectRatio: 0.88,
                 ),
                 itemBuilder: (context, idx) => SchoolCard(
                   schoolData: filteredSchools[idx],
