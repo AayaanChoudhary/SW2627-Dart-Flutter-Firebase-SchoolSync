@@ -302,6 +302,14 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
             const SizedBox(height: 20),
 
+            // ── Executive Decision & Action Center (Alert Hub) ────────
+            DashboardActionCenter(
+              schools: schools,
+              onFilterSelected: (f) => setState(() => _triageFilter = f),
+            ),
+
+            const SizedBox(height: 20),
+
             // ── Stat Summary Cards (Interactive navigation) ─────────
             Row(
               children: [
